@@ -309,7 +309,7 @@
 
             // IMPORTANT: Firestore path now uses dataIdentifier
             // This requires Firebase security rules to allow read/write for any authenticated user
-            // to collections under `artifacts/{appId}/data_by_identifier/{dataIdentifier}/`
+            // to collections under `artifacts/${appId}/data_by_identifier/${dataIdentifier}/`
             // Example Rule:
             // match /artifacts/{appId}/data_by_identifier/{dataIdentifier}/{documents=**} {
             //   allow read, write: if request.auth != null; // WARNING: This makes data accessible if dataIdentifier is known!
@@ -1269,6 +1269,10 @@
                       {/* Morning Result Input */}
                       {selectedEntryType === 'morning' && (
                         <>
+                          {/* Display morning total sales */}
+                          <span className="text-sm font-bold text-blue-700 mr-2">
+                              Total: {morningTotalSales.toLocaleString()}
+                          </span>
                           <label htmlFor="morningResultInput" className="text-sm font-medium text-gray-700">မနက်:</label>
                           <input
                             id="morningResultInput" type="text" value={localMorningResultInput} onChange={(e) => setLocalMorningResultInput(e.target.value)}
@@ -1280,12 +1284,16 @@
                       {/* Evening Result Input */}
                       {selectedEntryType === 'evening' && (
                         <>
-                          <label htmlFor="eveningResultInput" className="text-sm font-medium text-gray-700">ညနေ:</label>
-                          <input
-                            id="eveningResultInput" type="text" value={localEveningResultInput} onChange={(e) => setLocalEveningResultInput(e.target.value)}
-                            onBlur={(e) => updateResult('evening', e.target.value)} className="w-16 p-1 border border-gray-300 rounded-md text-center text-sm focus:outline-none focus:ring-1 focus:ring-green-400"
-                            placeholder="00" maxLength="2" aria-label="Evening Result"
-                          />
+                           {/* Display evening total sales */}
+                           <span className="text-sm font-bold text-green-700 mr-2">
+                               Total: {eveningTotalSales.toLocaleString()}
+                           </span>
+                           <label htmlFor="eveningResultInput" className="text-sm font-medium text-gray-700">ညနေ:</label>
+                           <input
+                             id="eveningResultInput" type="text" value={localEveningResultInput} onChange={(e) => setLocalEveningResultInput(e.target.value)}
+                             onBlur={(e) => updateResult('evening', e.target.value)} className="w-16 p-1 border border-gray-300 rounded-md text-center text-sm focus:outline-none focus:ring-1 focus:ring-green-400"
+                             placeholder="00" maxLength="2" aria-label="Evening Result"
+                           />
                         </>
                       )}
                       {/* Overall Numbers Summary Button */}
