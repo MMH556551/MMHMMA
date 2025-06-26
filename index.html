@@ -166,6 +166,7 @@
           });
           const [dataIdentifierInput, setDataIdentifierInput] = React.useState(dataIdentifier); // Input field state for data identifier
           const [idErrorMessage, setIdErrorMessage] = React.useState(''); // Error message for data identifier input
+          const [showDataIdentifierModal, setShowDataIdentifierModal] = React.useState(false); // New state for modal visibility
 
           // --- Date and Result States ---
           const [currentDate, setCurrentDate] = React.useState(formatDate(new Date()));
@@ -1166,6 +1167,7 @@
               setErrorMessage("User ID ကို အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။");
               setTimeout(() => setErrorMessage(''), 3000);
               console.log("Data identifier updated to:", dataIdentifierInput.trim());
+              setShowDataIdentifierModal(false); // Close modal after saving
           };
 
           // --- Utility function for copying text to clipboard ---
@@ -1322,45 +1324,12 @@
                       </button>
                   </div>
                 )}
-
-                {/* User Data Identifier Input and Display */}
-                {currentPage === 'home' && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-700 font-semibold mb-2">
-                        သင့်ဒေတာများအတွက် User ID သို့မဟုတ် Nickname:
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={dataIdentifierInput}
-                        onChange={(e) => {
-                            setDataIdentifierInput(e.target.value);
-                            setIdErrorMessage(''); // Clear error on change
-                        }}
-                        placeholder="User ID သို့မဟုတ် Nickname ထည့်ပါ"
-                        className="flex-1 p-2 border border-blue-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm"
-                        aria-label="User Data Identifier Input"
-                      />
-                      <button
-                        onClick={handleSaveDataIdentifier}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transform active:scale-95 transition-transform text-sm"
-                      >
-                        User ID သိမ်းမည်
-                      </button>
-                    </div>
-                    {idErrorMessage && (
-                        <p className="text-red-600 text-xs mt-2 text-center">{idErrorMessage}</p>
-                    )}
-                    {dataIdentifier && (
-                        <p className="text-xs text-gray-500 text-center mt-2">
-                            လက်ရှိ ID: <span className="font-bold text-gray-700">{dataIdentifier}</span>
-                            <br/>
-                            <span className="text-red-500 font-bold">သတိ: ဤ ID ကိုသိသူတိုင်း သင့်ဒေတာကို ဝင်ရောက်နိုင်ပါသည်။</span>
-                        </p>
-                    )}
-                  </div>
+                {/* Display User ID on Home page */}
+                {currentPage === 'home' && dataIdentifier && ( // Use dataIdentifier here
+                  <p className="text-xs text-gray-500 text-center mt-2">
+                    လက်ရှိ ID: <span className="font-bold text-gray-700">{dataIdentifier}</span>
+                  </p>
                 )}
-
 
                 {/* Morning/Evening Result Displays for Home Page (clickable to navigate) */}
                 {currentPage === 'home' && (
@@ -1500,7 +1469,69 @@
                 </div>
               )}
 
+              {/* --- FAB for User ID on Home Page --- */}
+              {currentPage === 'home' && (
+                  <button
+                      onClick={() => setShowDataIdentifierModal(true)}
+                      className="fixed bottom-4 right-4 p-4 bg-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-90 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-purple-400 z-40"
+                      title="User ID သတ်မှတ်ရန်"
+                      aria-label="Set User ID"
+                  >
+                      <User size={28} />
+                  </button>
+              )}
+
+
               {/* --- Modals Section (Conditionally Rendered) --- */}
+
+              {/* User Data Identifier Modal */}
+              {showDataIdentifierModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm flex flex-col">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-blue-700">User ID သို့မဟုတ် Nickname သတ်မှတ်ရန်</h2>
+                      <button onClick={() => setShowDataIdentifierModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close User ID Modal">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    {/* Modal Content */}
+                    <div className="p-4">
+                      <p className="text-sm text-gray-700 font-semibold mb-3">
+                          သင့်ဒေတာများကို သိမ်းဆည်းရန် မှတ်မိလွယ်သော ID/Nickname ထည့်ပါ။
+                      </p>
+                      {idErrorMessage && (<p className="text-red-600 text-sm mb-2 text-center">{idErrorMessage}</p>)}
+                      <div className="flex flex-col space-y-3">
+                        <input
+                          type="text"
+                          value={dataIdentifierInput}
+                          onChange={(e) => {
+                              setDataIdentifierInput(e.target.value);
+                              setIdErrorMessage(''); // Clear error on change
+                          }}
+                          placeholder="User ID သို့မဟုတ် Nickname ထည့်ပါ"
+                          className="p-2 border border-blue-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm"
+                          aria-label="User Data Identifier Input"
+                        />
+                        <button
+                          onClick={handleSaveDataIdentifier}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transform active:scale-95 transition-transform text-sm"
+                        >
+                          User ID သိမ်းမည်
+                        </button>
+                      </div>
+                      {dataIdentifier && (
+                          <p className="text-xs text-gray-500 text-center mt-3 p-2 bg-gray-50 rounded-md border border-gray-200">
+                              လက်ရှိ ID: <span className="font-bold text-gray-700">{dataIdentifier}</span>
+                              <br/>
+                              <span className="text-red-500 font-bold">သတိ: ဤ ID ကိုသိသူတိုင်း သင့်ဒေတာကို ဝင်ရောက်နိုင်ပါသည်။</span>
+                          </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
 
               {/* Customer Entries Detail Modal */}
               {showCustomerEntries && (
