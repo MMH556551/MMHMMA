@@ -1560,20 +1560,16 @@
                     {/* Modal Content - List of individual entries */}
                     <div className="p-4 overflow-y-auto flex-1">
                       {customerDailySummaries[selectedCustomerForDetail]?.entries.map(entry => (
-                        <div key={entry.id} className="bg-gray-50 p-3 rounded-md mb-2 shadow-sm">
-                            {/* Split originalInput by lines and render each line with a copy button */}
-                            {entry.originalInput.split('\n').map((line, lineIndex) => (
-                                <div key={`${entry.id}-${lineIndex}`} className="flex justify-between items-center mb-1 last:mb-0">
-                                    <p className="text-sm text-gray-700 font-medium break-words flex-1 pr-2">{line.trim()}</p>
-                                    <button
-                                        onClick={() => copyToClipboard(line.trim())}
-                                        className="p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
-                                        title="ဤစာကြောင်းကို ကူးယူပါ" aria-label={`Copy line ${lineIndex + 1}`}
-                                    >
-                                        <Copy size={16} />
-                                    </button>
-                                </div>
-                            ))}
+                        <div key={entry.id} className="bg-gray-50 p-3 rounded-md mb-2 shadow-sm relative"> {/* Added relative for positioning copy button */}
+                          <p className="text-sm text-gray-700 font-medium break-words pr-8 whitespace-pre-line">{entry.originalInput}</p> {/* Original input as one block, with space for button */}
+                          {/* Copy button for the entire original input */}
+                          <button
+                              onClick={() => copyToClipboard(entry.originalInput)}
+                              className="absolute top-2 right-2 p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
+                              title="ဤစာရင်းကို ကူးယူပါ" aria-label="Copy Original Entry"
+                          >
+                              <Copy size={16} />
+                          </button>
                           <p className="text-xs text-gray-500 mt-2">
                             စုစုပေါင်း: {calculateTotalAmount(entry.parsedEntries).toLocaleString()}
                           </p>
