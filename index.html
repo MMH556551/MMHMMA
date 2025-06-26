@@ -9,7 +9,11 @@
     <!-- Google Fonts - Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Add this to prevent pull-to-refresh on mobile browsers */
+            overscroll-behavior-y: contain;
+        }
         /* Custom CSS for scrollbars, animations, etc. */
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -491,9 +495,18 @@
                 });
               }
             });
-            const summaryArray = Object.entries(summary).map(([number, amount]) => `${number}=${amount}`);
+
+            const summaryArray = [];
+            for (let i = 0; i <= 99; i++) {
+                const formattedNumber = String(i).padStart(2, '0'); // 00, 01, ..., 99
+                if (summary[formattedNumber] !== undefined && summary[formattedNumber] > 0) {
+                    // Only include numbers that have entries (amount > 0)
+                    summaryArray.push(`${formattedNumber} = ${summary[formattedNumber]}`);
+                }
+            }
+
             const totalOverallAmount = Object.values(summary).reduce((sum, amount) => sum + amount, 0);
-            const uniqueNumbersCount = Object.keys(summary).length;
+            const uniqueNumbersCount = summaryArray.length; // Count of numbers with entries
             return { summaryArray, totalOverallAmount, uniqueNumbersCount };
           }, [entries, selectedEntryType]);
 
@@ -1548,8 +1561,20 @@
                     <div className="p-4 overflow-y-auto flex-1">
                       {customerDailySummaries[selectedCustomerForDetail]?.entries.map(entry => (
                         <div key={entry.id} className="bg-gray-50 p-3 rounded-md mb-2 shadow-sm">
-                          <p className="text-sm text-gray-700 font-medium">{entry.originalInput}</p>
-                          <p className="text-xs text-gray-500">
+                            {/* Split originalInput by lines and render each line with a copy button */}
+                            {entry.originalInput.split('\n').map((line, lineIndex) => (
+                                <div key={`${entry.id}-${lineIndex}`} className="flex justify-between items-center mb-1 last:mb-0">
+                                    <p className="text-sm text-gray-700 font-medium break-words flex-1 pr-2">{line.trim()}</p>
+                                    <button
+                                        onClick={() => copyToClipboard(line.trim())}
+                                        className="p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
+                                        title="ဤစာကြောင်းကို ကူးယူပါ" aria-label={`Copy line ${lineIndex + 1}`}
+                                    >
+                                        <Copy size={16} />
+                                    </button>
+                                </div>
+                            ))}
+                          <p className="text-xs text-gray-500 mt-2">
                             စုစုပေါင်း: {calculateTotalAmount(entry.parsedEntries).toLocaleString()}
                           </p>
                           <div className="flex justify-end space-x-2 mt-2">
@@ -1578,6 +1603,11 @@
                         </span>
                     </div>
                   </div>
+                  {showCopyConfirmation && ( // Copy confirmation for this modal
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fade-in-out">
+                          စာရင်းကို ကူးယူပြီးပါပြီ။
+                      </div>
+                  )}
                 </div>
               )}
 
