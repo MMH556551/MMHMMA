@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ထိုးကြေးမှတ်တမ်း</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom CSS for scrollbars, animations, etc. */
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        /* Keyframe animation for fade-in-out effect (e.g., for copy confirmation) */
+        @keyframes fade-in-out { 0% { opacity: 0; transform: translateY(10px); } 10% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(0); } }
+        .animate-fade-in-out { animation: fade-in-out 2s ease-in-out forwards; }
+        /* Keyframe animation for spinning loader */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
+
+        /* Ensure input type="date" matches other inputs' style */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            color: rgba(0, 0, 0, 0); /* Make default icon transparent */
+            opacity: 0; /* Hide default icon */
+            display: block; /* Ensure it takes up space */
+            width: 100%; /* Take full width for clickability */
+            height: 100%; /* Take full height */
+            position: absolute; /* Position over the text */
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+        input[type="date"] {
+            -webkit-appearance: none; /* Remove default styling on WebKit browsers */
+            appearance: none; /* Remove default styling */
+            position: relative; /* For the absolute positioned calendar icon */
+            /* Add custom styles here if needed, or let Tailwind handle it */
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="root"></div>
+
+    <!-- React and ReactDOM CDNs -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX transformation in browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase SDKs CDNs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+        // import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-analytics.js"; // Analytics not used in React code
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
+        import { getFirestore, collection, query, onSnapshot, addDoc, setDoc, deleteDoc, doc, getDoc, getDocs, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
+
+        // Expose Firebase functions and objects globally for the Babel script
+        window.firebase = {
+            initializeApp,
+            getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getFirestore, collection, query, onSnapshot, addDoc, setDoc, deleteDoc, doc, getDoc, getDocs, updateDoc, where
+        };
+
+        // Your web app's Firebase configuration (provided by user)
+        window.__app_id = "1:602585837585:web:470e15eb4a5fd4d64d81b0"; // Directly from user provided appId
+        window.__firebase_config = JSON.stringify({
+            apiKey: "AIzaSyDUf0QF4GqMb6s9ODTUiX7aTHRTR0YUqcE",
+            authDomain: "html-3ce83.firebaseapp.com",
+            databaseURL: "https://html-3ce83-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "html-3ce83",
+            storageBucket: "html-3ce83.firebasestorage.app",
+            messagingSenderId: "602585837585",
+            appId: "1:602585837585:web:470e15eb4a5fd4d64d81b0",
+            measurementId: "G-44BG2J1XQ3"
+        });
+        window.__initial_auth_token = ""; // Optional: if you have a custom auth token for initial login
+    </script>
+
+    <!-- Your React Component -->
+    <script type="text/babel">
+        // Helper function to format date to WHICH-MM-DD
+        const formatDate = (date) => {
+          const d = new Date(date);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
+        // Helper function to format month to WHICH-MM
+        const formatMonthYear = (date) => {
+          const d = new Date(date);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          return `${year}-${month}`;
+        };
+
+        // Helper function to generate permutations for "kway" entries (e.g., "123ခွေ100" -> "12","13","21","23","31","32")
+        const generateKwayPermutations = (digitsString) => {
+          const uniqueDigits = Array.from(new Set(digitsString.split(''))).sort();
+          const permutations = new Set();
+
+          // Need at least 2 unique digits for permutations
+          if (uniqueDigits.length < 2) return [];
+
+          for (let i = 0; i < uniqueDigits.length; i++) {
+            for (let j = 0; j < uniqueDigits.length; j++) {
+              if (i !== j) { // Ensure distinct digits for each pair
+                permutations.add(`${uniqueDigits[i]}${uniqueDigits[j]}`);
+              }
+            }
+          }
+          return Array.from(permutations);
+        };
+
+        // Helper function to generate numbers for "ဘရိတ်" (Brake) entries (e.g., "1ဘရိတ်100" -> "01", "10", "1+0=1")
+        const generateBrakeNumbers = (brakeDigit) => {
+          const numbers = new Set();
+          const targetLastDigit = parseInt(brakeDigit);
+
+          for (let i = 0; i <= 9; i++) {
+            for (let j = 0; j <= 9; j++) {
+              const sum = i + j;
+              if (sum % 10 === targetLastDigit) {
+                numbers.add(`${i}${j}`);
+              }
+            }
+          }
+          return Array.from(numbers).sort();
+        };
+
+        // Re-mapping Lucide React icons to simple inline SVGs
+        // This is done because lucide-react library cannot be directly imported
+        // and used in a single HTML file without a build step.
+        const ChevronLeft = ({ size = 20, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m15 18-6-6 6-6"/></svg>;
+        const ChevronRight = ({ size = 20, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>;
+        const Plus = ({ size = 28, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 5v14M5 12h14"/></svg>;
+        const Copy = ({ size = 16, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
+        const Edit = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>;
+        const Trash2 = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>;
+        const CalendarDays = ({ size = 16, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>;
+        const BarChart3 = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>;
+        const X = ({ size = 24, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+        const User = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>;
+        const ArrowLeft = ({ size = 20, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
+        const Loader2 = ({ size = 48, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
+        const Users = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+
+
+        // Main App Component
+        const App = () => {
+          // --- Firebase States ---
+          const [db, setDb] = React.useState(null);
+          const [auth, setAuth] = React.useState(null);
+          const [userId, setUserId] = React.useState(null); // Firebase Auth UID
+          const [isLoading, setIsLoading] = React.useState(true); // Initial loading state for Firebase init and data fetch
+
+          // --- Data Identifier State (for persistence across sessions) ---
+          const [dataIdentifier, setDataIdentifier] = React.useState(() => {
+              // Initialize from localStorage if available, otherwise empty
+              const savedId = localStorage.getItem('user_data_identifier');
+              return savedId || '';
+          });
+          const [dataIdentifierInput, setDataIdentifierInput] = React.useState(dataIdentifier); // Input field state for data identifier
+          const [idErrorMessage, setIdErrorMessage] = React.useState(''); // Error message for data identifier input
+
+          // --- Date and Result States ---
+          const [currentDate, setCurrentDate] = React.useState(formatDate(new Date()));
+          const [morningResult, setMorningResult] = React.useState('');
+          const [eveningResult, setEveningResult] = React.useState('');
+          // Local states for inputs, will sync with actual results on blur
+          const [localMorningResultInput, setLocalMorningResultInput] = React.useState('');
+          const [localEveningResultInput, setLocalEveningResultInput] = React.useState('');
+
+          // --- Home Page Summary States (Derived from 'entries' and 'results' states) ---
+          const [morningTotalSales, setMorningTotalSales] = React.useState(0);
+          const [eveningTotalSales, setEveningTotalSales] = React.useState(0);
+          const [morningTotalPayout, setMorningTotalPayout] = React.useState(0);
+          const [eveningTotalPayout, setEveningTotalPayout] = React.useState(0);
+          const [morningTotalWinningBetAmountHome, setMorningTotalWinningBetAmountHome] = React.useState(0);
+          const [eveningTotalWinningBetAmountHome, setEveningTotalWinningBetAmountHome] = React.useState(0);
+
+          // --- Entry Management States ---
+          const [entries, setEntries] = React.useState([]); // All entries for the CURRENTLY selected day (fetched from Firestore)
+          const [selectedEntryType, setSelectedEntryType] = React.useState('morning'); // 'morning' or 'evening'
+          const [inputEntry, setInputEntry] = React.useState(''); // Textarea input for new/edited entries
+          const [customerNameInput, setCustomerNameInput] = React.useState(''); // Input for customer name
+          const [isCustomerNameInputFocused, setIsCustomerNameInputFocused] = React.useState(false); // For managing customer name input focus
+
+          // --- UI/Modal Control States ---
+          const [errorMessage, setErrorMessage] = React.useState(''); // Global error message
+          const [showErrorModal, setShowErrorModal] = React.useState(false); // Controls error details modal visibility
+          const [errorDetails, setErrorDetails] = React.useState([]); // Details of parsing errors
+          const [showCustomerEntries, setShowCustomerEntries] = React.useState(false); // Controls individual customer entries detail modal visibility
+          const [selectedCustomerForDetail, setSelectedCustomerForDetail] = React.useState(''); // Customer whose entries are being viewed
+          const [showOverallSummary, setShowOverallSummary] = React.useState(false); // Controls overall numbers summary modal visibility
+          const [showDailySummaryModal, setShowDailySummaryModal] = React.useState(false); // Controls daily profit/loss summary modal visibility
+          const [showDatePicker, setShowDatePicker] = React.useState(false); // Controls date picker visibility
+          const [showConfirmDeleteModal, setShowConfirmDeleteModal] = React.useState(false); // Controls entry deletion confirmation modal
+          const [entryToDeleteId, setEntryToDeleteId] = React.useState(null); // ID of entry to be deleted
+          const [showCopyConfirmation, setShowCopyConfirmation] = React.useState(false); // Controls copy confirmation message visibility
+
+          // --- Monthly Summary States ---
+          const [currentMonth, setCurrentMonth] = React.useState(formatMonthYear(new Date())); // Selected month for monthly summaries
+          const [monthlySummary, setMonthlySummary] = React.useState(null); // Data for overall monthly summary
+          const [showMonthlySummaryModal, setShowMonthlySummaryModal] = React.useState(false); // Controls monthly summary modal visibility
+          const [isMonthlySummaryLoading, setIsMonthlySummaryLoading] = React.useState(false); // Loading state for monthly summary
+
+          // --- Per-Customer Monthly Summary States ---
+          const [perCustomerMonthlySummary, setPerCustomerMonthlySummary] = React.useState(null); // Data for per-customer monthly summary
+          const [showPerCustomerMonthlySummaryModal, setShowPerCustomerMonthlySummaryModal] = React.useState(false); // Controls per-customer monthly summary modal visibility
+          const [isPerCustomerMonthlySummaryLoading, setIsPerCustomerMonthlySummaryLoading] = React.useState(false); // Loading state for per-customer monthly summary
+
+          // --- Customer Management States ---
+          const [showManageCustomersModal, setShowManageCustomersModal] = React.useState(false); // Controls customer management modal visibility
+          const [customers, setCustomers] = React.useState([]); // Master list of customer names from Firestore
+          const [newCustomerName, setNewCustomerName] = React.useState(''); // Input for adding/editing customer names
+          const [editingCustomerId, setEditingCustomerId] = React.useState(null); // ID of customer being edited
+          const [confirmDeleteCustomerModal, setConfirmDeleteCustomerModal] = React.useState(false); // Controls customer deletion confirmation modal
+          const [customerToDeleteId, setCustomerToDeleteId] = React.useState(null); // ID of customer to be deleted
+
+          // --- Navigation state ---
+          const [currentPage, setCurrentPage] = React.useState('home'); // 'home' or 'entries'
+
+          // --- Refs for UI elements ---
+          const inputRef = React.useRef(null); // Ref for the main entry textarea
+          const fixedInputAreaRef = React.useRef(null); // Ref for the fixed bottom input area
+          const [fixedInputAreaHeight, setFixedInputAreaHeight] = React.useState(0); // Height of the fixed input area for dynamic padding
+
+          // Calculate the height of the fixed input area for dynamic padding on the entries page
+          React.useEffect(() => {
+            if (fixedInputAreaRef.current) {
+              setFixedInputAreaHeight(fixedInputAreaRef.current.offsetHeight);
+            }
+          }, [fixedInputAreaRef.current, currentPage]); // Recalculate if ref changes or page changes
+
+          // --- Firebase Initialization and Authentication ---
+          React.useEffect(() => {
+            // Access global variables defined in the module script
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const firebaseConfig = typeof window.__firebase_config !== 'undefined' ? JSON.parse(window.__firebase_config) : {};
+            const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : '';
+
+
+            if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+              console.error("Firebase config is missing. Data persistence will not work.");
+              setIsLoading(false);
+              return;
+            }
+
+            // Use the globally exposed Firebase functions
+            const app = window.firebase.initializeApp(firebaseConfig);
+            const database = window.firebase.getFirestore(app);
+            const authInstance = window.firebase.getAuth(app);
+            setDb(database);
+            setAuth(authInstance);
+
+            // Set up authentication state listener
+            const unsubscribeAuth = window.firebase.onAuthStateChanged(authInstance, async (user) => {
+              if (user) {
+                setUserId(user.uid);
+                console.log("Firebase Auth State Changed: Logged in as", user.uid);
+              } else {
+                console.log("Firebase Auth State Changed: No user, attempting anonymous sign-in or custom token.");
+                try {
+                  // Use __initial_auth_token if available for seamless login
+                  if (initialAuthToken) {
+                    await window.firebase.signInWithCustomToken(authInstance, initialAuthToken);
+                  } else {
+                    // Otherwise, sign in anonymously
+                    await window.firebase.signInAnonymously(authInstance);
+                  }
+                } catch (error) {
+                  console.error("Firebase Auth Error:", error);
+                  setErrorMessage("Authentication failed. Please try again.");
+                }
+              }
+              setIsLoading(false); // Auth is ready, stop initial loading indicator
+            });
+
+            return () => unsubscribeAuth(); // Cleanup auth listener on component unmount
+          }, []); // Run once on component mount
+
+          // --- Effect to manage dataIdentifier persistence in localStorage ---
+          React.useEffect(() => {
+              if (dataIdentifier) {
+                  localStorage.setItem('user_data_identifier', dataIdentifier);
+              } else {
+                  localStorage.removeItem('user_data_identifier');
+              }
+          }, [dataIdentifier]);
+
+          // --- Firestore Data Fetching (Entries, Daily Results, and Master Customers) ---
+          React.useEffect(() => {
+            if (!db || !dataIdentifier) { // Now depends on dataIdentifier, not userId
+              // If db or dataIdentifier is not yet available, skip fetching
+              return;
+            }
+
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+
+            // IMPORTANT: Firestore path now uses dataIdentifier
+            // This requires Firebase security rules to allow read/write for any authenticated user
+            // to collections under `artifacts/{appId}/data_by_identifier/{dataIdentifier}/`
+            // Example Rule:
+            // match /artifacts/{appId}/data_by_identifier/{dataIdentifier}/{documents=**} {
+            //   allow read, write: if request.auth != null; // WARNING: This makes data accessible if dataIdentifier is known!
+            // }
+
+            // 1. Fetch Entries for the current date
+            const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
+            const qEntries = window.firebase.query(entriesCollectionRef, window.firebase.where('date', '==', currentDate));
+
+            const unsubscribeEntries = window.firebase.onSnapshot(qEntries, (snapshot) => {
+              const fetchedEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              setEntries(fetchedEntries);
+              console.log(`Fetched ${fetchedEntries.length} entries for ${currentDate} under ID: ${dataIdentifier}.`);
+            }, (error) => {
+              console.error("Error fetching entries:", error);
+              setErrorMessage("Error loading entries.");
+            });
+
+            // 2. Fetch Daily Results for the current date
+            const dailyResultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, currentDate);
+            const unsubscribeResults = window.firebase.onSnapshot(dailyResultDocRef, (docSnap) => {
+              if (docSnap.exists()) {
+                const data = docSnap.data();
+                setMorningResult(data.morningResult || '');
+                setEveningResult(data.eveningResult || '');
+                // Update local input states to reflect fetched results
+                setLocalMorningResultInput(data.morningResult || '');
+                setLocalEveningResultInput(data.eveningResult || '');
+                console.log(`Fetched results for ${currentDate} under ID: ${dataIdentifier}: Morning=${data.morningResult}, Evening=${data.eveningResult}`);
+              } else {
+                // If no results for the current date, reset them
+                setMorningResult('');
+                setEveningResult('');
+                setLocalMorningResultInput('');
+                setLocalEveningResultInput('');
+                console.log(`No results found for ${currentDate} under ID: ${dataIdentifier}.`);
+              }
+            }, (error) => {
+              console.error("Error fetching daily results:", error);
+              setErrorMessage("Error loading daily results.");
+            });
+
+            // 3. Fetch Master Customer List
+            const customersCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`);
+            const qCustomers = window.firebase.query(customersCollectionRef);
+            const unsubscribeCustomers = window.firebase.onSnapshot(qCustomers, (snapshot) => {
+                const fetchedCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Sort customers alphabetically by name for consistent display
+                setCustomers(fetchedCustomers.sort((a, b) => a.name.localeCompare(b.name)));
+                console.log(`Fetched ${fetchedCustomers.length} master customers under ID: ${dataIdentifier}.`);
+            }, (error) => {
+                console.error("Error fetching master customers:", error);
+                setErrorMessage("Error loading customer list.");
+            });
+
+            // Cleanup listeners on unmount or when db/dataIdentifier/currentDate changes
+            return () => {
+              unsubscribeEntries();
+              unsubscribeResults();
+              unsubscribeCustomers(); // Cleanup customer listener
+              // Reset state when date changes to avoid showing old data before new data loads
+              setEntries([]);
+              setMorningResult('');
+              setEveningResult('');
+              setLocalMorningResultInput('');
+              setLocalEveningResultInput('');
+            };
+          }, [db, dataIdentifier, currentDate]); // Rerun when db, dataIdentifier, or currentDate changes
+
+          // --- Recalculate Home Page Totals (Sales, Payouts, Winning Bet Amounts) ---
+          // This effect runs whenever 'entries', 'morningResult', or 'eveningResult' change
+          React.useEffect(() => {
+            const payoutRatePer100 = 8000; // Payout rate: 8000 for every 100 bet
+
+            // Calculate total sales for morning and evening
+            const currentMorningTotal = entries
+              .filter(entry => entry.type === 'morning')
+              .reduce((sum, entry) => sum + calculateTotalAmount(entry.parsedEntries), 0);
+            setMorningTotalSales(currentMorningTotal);
+
+            const currentEveningTotal = entries
+              .filter(entry => entry.type === 'evening')
+              .reduce((sum, entry) => sum + calculateTotalAmount(entry.parsedEntries), 0);
+            setEveningTotalSales(currentEveningTotal);
+
+            // Calculate total payouts and winning bet amounts for morning and evening
+            let tempMorningPayout = 0;
+            let tempEveningPayout = 0;
+            let tempMorningWinningBetAmount = 0;
+            let tempEveningWinningBetAmount = 0;
+
+            entries.forEach(entry => {
+              if (entry.type === 'morning' && morningResult && morningResult.length === 2) {
+                entry.parsedEntries.forEach(parsedEntry => {
+                  if (parsedEntry.number === morningResult) {
+                    tempMorningPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                    tempMorningWinningBetAmount += parsedEntry.amount;
+                  }
+                });
+              }
+              if (entry.type === 'evening' && eveningResult && eveningResult.length === 2) {
+                entry.parsedEntries.forEach(parsedEntry => {
+                  if (parsedEntry.number === eveningResult) {
+                    tempEveningPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                    tempEveningWinningBetAmount += parsedEntry.amount;
+                  }
+                });
+              }
+            });
+            setMorningTotalPayout(tempMorningPayout);
+            setEveningTotalPayout(tempEveningPayout);
+            setMorningTotalWinningBetAmountHome(tempMorningWinningBetAmount);
+            setEveningTotalWinningBetAmountHome(tempEveningWinningBetAmount);
+
+          }, [entries, morningResult, eveningResult]); // Dependencies now reflect Firestore-synced data
+
+          // --- Helper Function to Calculate Total Amount for Parsed Entries ---
+          const calculateTotalAmount = React.useCallback((parsedEntries) => {
+            if (!Array.isArray(parsedEntries)) return 0;
+            return parsedEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+          }, []);
+
+          // --- Calculate Daily Summaries Per Customer (for Entries page) ---
+          // This memoized function calculates summaries based on the currently selected entry type (morning/evening)
+          const calculateCustomerDailySummaries = React.useCallback((entries, morningResult, eveningResult, selectedEntryType) => {
+            const grouped = {};
+            const payoutRatePer100 = 8000;
+            const commissionRate = 0.15; // Example commission rate
+
+            // Determine the winning result for the currently selected type
+            const currentWinningResult = selectedEntryType === 'morning' ? morningResult : eveningResult;
+
+            entries.forEach(entry => {
+              // Only process entries for the currently selected type (morning/evening)
+              if (entry.type !== selectedEntryType) {
+                return;
+              }
+
+              // Initialize customer data if not present
+              if (!grouped[entry.customerName]) {
+                grouped[entry.customerName] = {
+                  totalSales: 0, totalPayout: 0, totalCommission: 0, netProfitLoss: 0, entries: [], winningNumber: null, winningBetAmount: 0
+                };
+              }
+              grouped[entry.customerName].totalSales += calculateTotalAmount(entry.parsedEntries);
+
+              // Calculate payouts if a winning result is available
+              if (currentWinningResult && currentWinningResult.length === 2) {
+                entry.parsedEntries.forEach(parsedEntry => {
+                  if (parsedEntry.number === currentWinningResult) {
+                    grouped[entry.customerName].totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                    grouped[entry.customerName].winningNumber = currentWinningResult;
+                    grouped[entry.customerName].winningBetAmount += parsedEntry.amount;
+                  }
+                });
+              }
+              grouped[entry.customerName].entries.push(entry); // Add original entry to the group
+            });
+
+            // Calculate commission and net profit/loss for each customer
+            Object.keys(grouped).forEach(customerName => {
+              const customerData = grouped[customerName];
+              customerData.totalCommission = customerData.totalSales * commissionRate;
+              customerData.netProfitLoss = customerData.totalSales - customerData.totalCommission - customerData.totalPayout;
+            });
+            return grouped;
+          }, [calculateTotalAmount, morningResult, eveningResult]); // Re-calculate if current date or results change
+
+          // This computed value will update when 'entries' or 'selectedEntryType' changes
+          const customerDailySummaries = calculateCustomerDailySummaries(entries, morningResult, eveningResult, selectedEntryType);
+
+          // --- Calculate Overall Numbers Summary (for Entries page modal) ---
+          const getOverallNumbersSummary = React.useCallback(() => {
+            const summary = {};
+            // Filter entries by the currently selected type
+            const filteredEntries = entries.filter(entry => entry.type === selectedEntryType);
+            filteredEntries.forEach(entry => {
+              if (Array.isArray(entry.parsedEntries)) {
+                entry.parsedEntries.forEach(parsedEntry => {
+                  const num = parsedEntry.number;
+                  const amount = parsedEntry.amount;
+                  summary[num] = (summary[num] || 0) + amount; // Aggregate amounts for each number
+                });
+              }
+            });
+            const summaryArray = Object.entries(summary).map(([number, amount]) => `${number}=${amount}`);
+            const totalOverallAmount = Object.values(summary).reduce((sum, amount) => sum + amount, 0);
+            const uniqueNumbersCount = Object.keys(summary).length;
+            return { summaryArray, totalOverallAmount, uniqueNumbersCount };
+          }, [entries, selectedEntryType]);
+
+          // This computed value will update when 'entries' or 'selectedEntryType' changes
+          const { summaryArray, totalOverallAmount, uniqueNumbersCount } = getOverallNumbersSummary();
+
+          // --- Calculate Daily Profit/Loss Summary (for Home page modal) ---
+          const calculateDailySummary = React.useCallback(() => {
+            // `entries` state already contains data for `currentDate`
+            const allDailyEntries = entries;
+            const totalSales = allDailyEntries.reduce((sum, entry) => sum + calculateTotalAmount(entry.parsedEntries), 0);
+            const commissionRate = 0.15;
+            let totalPayout = 0;
+            let totalWinningBetAmount = 0;
+            const payoutRatePer100 = 8000;
+
+            // Calculate payouts for morning entries based on morningResult
+            if (morningResult && morningResult.length === 2) {
+              allDailyEntries.filter(entry => entry.type === 'morning').forEach(entry => {
+                if (Array.isArray(entry.parsedEntries)) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === morningResult) {
+                        totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                        totalWinningBetAmount += parsedEntry.amount;
+                    }
+                  });
+                }
+              });
+            }
+            // Calculate payouts for evening entries based on eveningResult
+            if (eveningResult && eveningResult.length === 2) {
+              allDailyEntries.filter(entry => entry.type === 'evening').forEach(entry => {
+                if (Array.isArray(entry.parsedEntries)) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === eveningResult) {
+                        totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                        totalWinningBetAmount += parsedEntry.amount;
+                    }
+                  });
+                }
+              });
+            }
+            const commission = totalSales * commissionRate;
+            const profitLoss = totalSales - commission - totalPayout;
+            return { totalSales, commission, totalPayout, totalWinningBetAmount, profitLoss };
+          }, [entries, morningResult, eveningResult, calculateTotalAmount]); // Dependencies ensure re-calculation on data change
+
+          // This computed value will update when 'entries', 'morningResult', or 'eveningResult' change
+          const dailySummary = calculateDailySummary();
+
+          // --- Function to Parse User Input into Structured Bet Entries ---
+          const parseEntryInput = (input) => {
+            const parsed = []; // Array to store successfully parsed entries
+            const errors = [];  // Array to store errors encountered during parsing
+            // Split input into lines, trim whitespace, and filter out empty lines
+            const lines = input.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+            const parseLine = (line) => {
+              const cleanLine = line.replace(/\s/g, ''); // Remove all whitespace for easier regex matching
+              let matchFound = false;
+
+              // Define regex patterns for different entry types
+              const patterns = {
+                doubles: /^အပူး(\d+)$/, // e.g., "အပူး100" -> "00,11,..,99" @ 100
+                consecutivePairs: /^ညီကို(\d+)$/, // e.g., "ညီကို100" -> "01,10,12,21,..." @ 100
+                fullPower: /^ပါဝါ(\d+)$/, // e.g., "ပါဝါ100" -> "05,50,16,61,..." @ 100
+                fullNakkat: /^နက္ခတ်(\d+)$/, // e.g., "နက္ခတ်100" -> "18,81,24,42,..." @ 100
+                mixed: /^(\d{1,2})=(\d+)([Rr])(\d+)$/, // e.g., "12=100R50" -> 12@100, 21@50
+                equal: /^(\d{1,2})=(\d+)$/, // e.g., "12=100" -> 12@100
+                reverse: /^(\d{1,2})[Rr](\d+)$/, // e.g., "12R100" -> 12@100, 21@100
+                dotFormat: /^(\d{1,2}(?:\.\d{1,2})+)([Rr=])(\d+)$/, // e.g., "12.34.56=100" or "12.34.56R100"
+                slash: /^(\d{1,2})\/(\d{1,2})([Rr=])(\d+)$/, // e.g., "12/34=100" or "12/34R100"
+                kway: /^(\d+)\s*ခွေ\s*(\d+)$/, // e.g., "123ခွေ100"
+                topBottom: /^(\d)\s*(ထိပ်|ပိတ်)(\d+)$/, // e.g., "1ထိပ်100" (01,11,21..91) or "1ပိတ်100" (10,11,12..19)
+                par: /^(\d)\s*(ပါ|ပါတ်)(\d+)$/, // e.g., "1ပါ100" (numbers containing 1)
+                brake: /^(\d+)\s*ဘရိတ်\s*(\d+)$/, // e.g., "1ဘရိတ်100" (numbers summing to X1)
+              };
+
+              let match;
+
+              // --- Handle predefined patterns (အပူး, ညီကို, ပါဝါ, နက္ခတ်) ---
+              if ((match = cleanLine.match(patterns.doubles))) {
+                matchFound = true;
+                const amount = parseInt(match[1]);
+                if (!isNaN(amount)) { for (let i = 0; i <= 9; i++) { parsed.push({ number: `${i}${i}`, amount: amount }); } }
+                else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.consecutivePairs))) {
+                matchFound = true;
+                const amount = parseInt(match[1]);
+                if (!isNaN(amount)) {
+                  const consecutiveNumbers = new Set();
+                  for (let i = 0; i < 10; i++) {
+                    const nextDigit = (i + 1) % 10;
+                    consecutiveNumbers.add(`${i}${nextDigit}`);
+                    consecutiveNumbers.add(`${nextDigit}${i}`);
+                  }
+                  Array.from(consecutiveNumbers).forEach(num => parsed.push({ number: num, amount: amount }));
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.fullPower))) {
+                matchFound = true;
+                const amount = parseInt(match[1]);
+                if (!isNaN(amount)) {
+                  const powerNumbers = ['05', '50', '16', '61', '27', '72', '38', '83', '49', '94'];
+                  powerNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.fullNakkat))) {
+                matchFound = true;
+                const amount = parseInt(match[1]);
+                if (!isNaN(amount)) {
+                  const nakkatNumbers = ['18', '81', '24', '42', '35', '53', '69', '96', '07', '70'];
+                  nakkatNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              // --- Handle specific number-amount patterns ---
+              else if ((match = cleanLine.match(patterns.mixed))) {
+                matchFound = true;
+                const num = match[1];
+                const amount1 = parseInt(match[2]);
+                const amount2 = parseInt(match[4]);
+                if (num.length === 2 && !isNaN(amount1) && !isNaN(amount2)) {
+                  parsed.push({ number: num, amount: amount1 });
+                  const reversedNum = num[1] + num[0];
+                  parsed.push({ number: reversedNum, amount: amount2 });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.equal))) {
+                matchFound = true;
+                const num = match[1];
+                const amount = parseInt(match[2]);
+                if (num.length === 2 && !isNaN(amount)) { parsed.push({ number: num, amount: amount }); }
+                else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.reverse))) {
+                matchFound = true;
+                const num = match[1];
+                const amount = parseInt(match[2]);
+                if (num.length === 2 && !isNaN(amount)) {
+                  parsed.push({ number: num, amount: amount });
+                  const reversedNum = num[1] + num[0];
+                  parsed.push({ number: reversedNum, amount: amount });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              // --- Handle dot-separated and slash-separated numbers ---
+              else if ((match = cleanLine.match(patterns.dotFormat))) {
+                matchFound = true;
+                const numsStr = match[1];
+                const operator = match[2]; // '=' or 'R'
+                const amount = parseInt(match[3]);
+                const numList = numsStr.split('.');
+                if (!isNaN(amount) && numList.every(n => n.length === 2 && !isNaN(parseInt(n)))) {
+                  numList.forEach(num => {
+                    parsed.push({ number: num, amount: amount });
+                    if (operator.toLowerCase() === 'r') {
+                      const reversedNum = num[1] + num[0];
+                      parsed.push({ number: reversedNum, amount: amount });
+                    }
+                  });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.slash))) {
+                matchFound = true;
+                const num1 = match[1];
+                const num2 = match[2];
+                const type = match[3]; // 'R' or '='
+                const amount = parseInt(match[4]);
+
+                if (num1.length === 2 && num2.length === 2 && !isNaN(amount)) {
+                  parsed.push({ number: num1, amount: amount });
+                  parsed.push({ number: num2, amount: amount });
+                  if (type.toLowerCase() === 'r') {
+                    parsed.push({ number: num1[1] + num1[0], amount: amount });
+                    parsed.push({ number: num2[1] + num2[0], amount: amount });
+                  }
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              // --- Handle "ခွေ" (kway) numbers ---
+              else if ((match = cleanLine.match(patterns.kway))) {
+                matchFound = true;
+                const digitsString = match[1];
+                const amount = parseInt(match[2]);
+                if (!isNaN(amount)) {
+                  const kwayNumbers = generateKwayPermutations(digitsString);
+                  if (kwayNumbers.length > 0) {
+                    kwayNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
+                  } else { errors.push({ originalLine: line, message: `'${digitsString}' မှ ဂဏန်းတွဲများ ထုတ်၍ မရပါ။ ဂဏန်းအရေအတွက် အနည်းဆုံး ၂ လုံး လိုအပ်ပါသည်။` }); }
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              // --- Handle "ထိပ်" (top), "ပိတ်" (bottom), "ပါ" (contains) ---
+              else if ((match = cleanLine.match(patterns.topBottom))) {
+                matchFound = true;
+                const digit = match[1];
+                const type = match[2]; // 'ထိပ်' or 'ပိတ်'
+                const amount = parseInt(match[3]);
+                if (digit.length === 1 && !isNaN(amount)) {
+                  for (let i = 0; i < 10; i++) {
+                    let num;
+                    if (type === 'ထိပ်') { num = `${digit}${i}`; } // e.g., 1ထိပ် -> 10,11,...,19
+                    else { num = `${i}${digit}`; } // e.g., 1ပိတ် -> 01,11,...,91
+                    parsed.push({ number: num, amount: amount });
+                  }
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.par))) {
+                matchFound = true;
+                const digit = match[1];
+                const amount = parseInt(match[3]);
+                if (digit.length === 1 && !isNaN(amount)) {
+                  // Generate all 2-digit numbers (00-99)
+                  const allNumbers = Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0'));
+                  allNumbers.forEach(num => {
+                    if (num.includes(digit)) { parsed.push({ number: num, amount: amount }); }
+                  });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              // --- Handle "ဘရိတ်" (brake) numbers ---
+              else if ((match = cleanLine.match(patterns.brake))) {
+                matchFound = true;
+                const brakeDigit = parseInt(match[1]);
+                const amount = parseInt(match[2]);
+                if (!isNaN(brakeDigit) && brakeDigit >= 0 && brakeDigit <= 9 && !isNaN(amount)) {
+                  const brakeNumbers = generateBrakeNumbers(brakeDigit);
+                  if (brakeNumbers.length > 0) {
+                    brakeNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
+                  } else { errors.push({ originalLine: line, message: `'${brakeDigit}' ဘရိတ်အတွက် ဂဏန်းများ ထုတ်၍ မရပါ။` }); }
+                } else { errors.push({ originalLine: line, message: "ဘရိတ်ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+
+              // If no pattern matched the line, record an error
+              if (!matchFound) {
+                errors.push({ originalLine: line, message: "မမှန်ကန်သော ထိုးကြေးပုံစံ။" });
+              }
+            };
+
+            lines.forEach(line => parseLine(line)); // Process each line of the input
+
+            return { parsed, errors };
+          };
+
+          // --- Add a new entry to Firestore ---
+          const addEntry = async () => {
+            console.log("Add Entry button clicked.");
+            console.log("Value of customerNameInput at addEntry:", customerNameInput);
+            console.log("Value of inputEntry at addEntry:", inputEntry);
+
+            if (!db || !dataIdentifier) { // Check dataIdentifier
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
+              console.error("Validation Error: DB or dataIdentifier not available.");
+              return;
+            }
+            // Clear previous error messages/details
+            setErrorMessage('');
+            setErrorDetails([]);
+            setShowErrorModal(false);
+
+            // Basic input validation
+            if (!customerNameInput.trim()) {
+              setErrorMessage("ထိုးသူအမည်ထည့်ရန် လိုအပ်ပါသည်။");
+              console.error("Validation Error: Customer name is empty.");
+              return;
+            }
+            if (!inputEntry.trim()) {
+              setErrorMessage("ထိုးကြေးထည့်ရန် လိုအပ်ပါသည်။");
+              console.error("Validation Error: Input entry is empty.");
+              return;
+            }
+
+            // Parse the input entry text
+            const { parsed, errors } = parseEntryInput(inputEntry);
+
+            // Show error modal if parsing errors are found
+            if (errors.length > 0) {
+              setErrorDetails(errors);
+              setShowErrorModal(true);
+              console.error("Parsing errors found:", errors);
+              return;
+            }
+
+            // If parsing was successful but no valid entries were found
+            if (parsed.length === 0) {
+              setErrorMessage("ထည့်သွင်းထားသော စာကြောင်းများထဲမှ မှန်ကန်သော ထိုးကြေးပုံစံကို ရှာမတွေ့ပါ။");
+              console.error("No valid entries parsed.");
+              return;
+            }
+
+            // Create the new entry object
+            const newEntry = {
+              date: currentDate,
+              type: selectedEntryType,
+              customerName: customerNameInput.trim(),
+              originalInput: inputEntry.trim(),
+              parsedEntries: parsed, // The structured parsed data
+              createdAt: new Date(),
+            };
+
+            try {
+              const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+              // Add the new entry to Firestore using dataIdentifier
+              await window.firebase.addDoc(window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`), newEntry);
+              // Clear input fields after successful addition
+              setInputEntry('');
+              setCustomerNameInput('');
+              if (inputRef.current) {
+                inputRef.current.value = ''; // Clear textarea value directly
+              }
+              setErrorMessage("စာရင်းကို အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။");
+              setTimeout(() => setErrorMessage(''), 3000); // Clear success message after 3 seconds
+              console.log("Add Entry: Document added successfully to Firestore under ID:", dataIdentifier);
+            } catch (e) {
+              console.error("Error adding document: ", e);
+              setErrorMessage("စာရင်းထည့်သွင်းရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+          };
+
+          // --- Update morning/evening results in Firestore ---
+          const updateResult = async (type, value) => {
+            if (!db || !dataIdentifier) { // Check dataIdentifier
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
+              return;
+            }
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const dailyResultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, currentDate);
+            try {
+              // Use setDoc with merge: true to update or create the document
+              await window.firebase.setDoc(dailyResultDocRef, {
+                [type === 'morning' ? 'morningResult' : 'eveningResult']: value,
+                updatedAt: new Date() // Record the update timestamp
+              }, { merge: true });
+              // Update local state to reflect the change
+              if (type === 'morning') {
+                setMorningResult(value);
+              } else {
+                setEveningResult(value);
+              }
+              console.log(`Update Result: ${type} result updated to ${value} in Firestore under ID: ${dataIdentifier}.`);
+            } catch (e) {
+              console.error(`Error updating ${type} result: `, e);
+              setErrorMessage(`Error updating ${type} result.`);
+            }
+          };
+
+          // --- Handle date navigation (previous/next day) ---
+          const handleDateChange = (days) => {
+            const newDate = new Date(currentDate);
+            newDate.setDate(newDate.getDate() + days); // Add/subtract days
+            setCurrentDate(formatDate(newDate)); // Update current date state
+            // Data will automatically re-fetch from Firestore due to `currentDate` dependency in useEffect
+          };
+
+          // --- Handle manual date selection from date picker ---
+          const handleManualDateChange = (e) => {
+            setCurrentDate(e.target.value); // Update current date state
+            setShowDatePicker(false); // Close the date picker
+            // Data will automatically re-fetch from Firestore
+          };
+
+          // --- Show custom delete confirmation modal for an entry ---
+          const confirmDeleteEntry = (id) => {
+            setEntryToDeleteId(id);
+            setShowConfirmDeleteModal(true);
+          };
+
+          // --- Execute deletion of an entry from Firestore ---
+          const executeDeleteEntry = async () => {
+            if (!db || !dataIdentifier || !entryToDeleteId) { // Check dataIdentifier
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။ သို့မဟုတ် Database မရပါ။");
+              return;
+            }
+            try {
+              const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+              await window.firebase.deleteDoc(window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`, entryToDeleteId));
+              setErrorMessage("စာရင်းကို ဖျက်ပြီးပါပြီ။");
+              console.log("Delete Entry: Document deleted from Firestore under ID:", dataIdentifier);
+              setShowConfirmDeleteModal(false); // Close modal
+              setEntryToDeleteId(null); // Clear ID
+              setTimeout(() => setErrorMessage(''), 3000); // Clear success message
+            } catch (e) {
+              console.error("Error deleting document: ", e);
+              setErrorMessage("စာရင်းဖျက်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+          };
+
+          // --- Populate input fields for editing an existing entry ---
+          const handleEditEntry = (entry) => {
+            console.log("Editing entry:", entry);
+            setCustomerNameInput(entry.customerName); // Set customer name input
+            setInputEntry(entry.originalInput); // Set original input text to textarea
+            setErrorMessage("စာရင်းကို ပြင်ဆင်ရန် အောက်ပါ ထိုးကြေး Input တွင် ပြင်ဆင်ပြီး '+' ခလုပ်ကိုနှိပ်၍ ပြန်လည် ထည့်သွင်းပါ။");
+            setShowCustomerEntries(false); // Close the customer entries detail modal
+            if (inputRef.current) {
+                inputRef.current.focus(); // Focus on the textarea for editing
+            }
+          };
+
+          // --- Monthly Summary Calculations and Data Fetching ---
+          const calculateMonthlySummaryData = React.useCallback((fetchedEntries, fetchedResults) => {
+            let totalSales = 0;
+            let totalPayout = 0;
+            let totalWinningBetAmount = 0;
+            const payoutRatePer100 = 8000;
+            const commissionRate = 0.15;
+
+            // Aggregate sales from all entries
+            fetchedEntries.forEach(entry => {
+              totalSales += calculateTotalAmount(entry.parsedEntries);
+
+              const dailyResult = fetchedResults[entry.date]; // Get result for the specific date of the entry
+              if (dailyResult) {
+                const winningResult = entry.type === 'morning' ? dailyResult.morningResult : dailyResult.eveningResult;
+
+                if (winningResult && winningResult.length === 2) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === winningResult) {
+                      totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                      totalWinningBetAmount += parsedEntry.amount;
+                    }
+                  });
+                }
+              }
+            });
+
+            const commission = totalSales * commissionRate;
+            const profitLoss = totalSales - commission - totalPayout;
+
+            return { totalSales, commission, totalPayout, totalWinningBetAmount, profitLoss };
+          }, [calculateTotalAmount]);
+
+          // Effect to fetch and calculate monthly summary data when modal is open or month changes
+          React.useEffect(() => {
+            if (!db || !dataIdentifier || !showMonthlySummaryModal) { // Check dataIdentifier
+              setMonthlySummary(null); // Clear summary when modal is closed or not ready
+              return;
+            }
+
+            setIsMonthlySummaryLoading(true);
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+
+            // Determine start and end dates of the current month
+            const [year, month] = currentMonth.split('-').map(Number);
+            const startOfMonth = new Date(year, month - 1, 1); // Month is 0-indexed in Date constructor
+            const endOfMonth = new Date(year, month, 0); // Last day of the month
+
+            const fetchMonthlyData = async () => {
+              try {
+                const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
+                // Query entries within the selected month
+                const qEntriesMonth = window.firebase.query(
+                  entriesCollectionRef,
+                  window.firebase.where('date', '>=', formatDate(startOfMonth)),
+                  window.firebase.where('date', '<=', formatDate(endOfMonth))
+                );
+                const entriesSnapshot = await window.firebase.getDocs(qEntriesMonth);
+                const fetchedMonthlyEntries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Collect all unique dates present in the fetched entries to query results efficiently
+                const uniqueDatesInMonthWithEntries = [...new Set(fetchedMonthlyEntries.map(entry => entry.date))];
+                const fetchedResults = {};
+                for (const dateString of uniqueDatesInMonthWithEntries) {
+                  const resultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, dateString);
+                  const resultSnap = await window.firebase.getDoc(resultDocRef);
+                  if (resultSnap.exists()) {
+                    fetchedResults[dateString] = resultSnap.data(); // Store results by date string
+                  }
+                }
+
+                // Calculate the summary using the fetched entries and results
+                const monthlySummaryCalculated = calculateMonthlySummaryData(
+                  fetchedMonthlyEntries,
+                  fetchedResults
+                );
+                setMonthlySummary(monthlySummaryCalculated);
+              } catch (error) {
+                console.error("Error fetching monthly data:", error);
+                setErrorMessage("Error loading monthly summary.");
+              } finally {
+                setIsMonthlySummaryLoading(false); // End loading regardless of success/failure
+              }
+            };
+
+            fetchMonthlyData();
+          }, [db, dataIdentifier, currentMonth, showMonthlySummaryModal, calculateMonthlySummaryData]); // Re-run when these dependencies change
+
+          // Handle month navigation (previous/next month)
+          const handleMonthChange = (months) => {
+            const [year, month] = currentMonth.split('-').map(Number);
+            const newDate = new Date(year, month - 1 + months, 1); // Adjust month, then set day to 1
+            setCurrentMonth(formatMonthYear(newDate)); // Update current month state
+          };
+
+          // Handle manual month selection from month input
+          const handleManualMonthChange = (e) => {
+            setCurrentMonth(e.target.value); // Update current month state
+          };
+
+          // --- Per-Customer Monthly Summary Calculations and Data Fetching ---
+          const calculatePerCustomerMonthlySummaryData = React.useCallback((fetchedEntries, fetchedResults) => {
+            const groupedCustomers = {};
+            const payoutRatePer100 = 8000;
+
+            // Group entries by customer and aggregate sales/payouts
+            fetchedEntries.forEach(entry => {
+              if (!groupedCustomers[entry.customerName]) {
+                groupedCustomers[entry.customerName] = {
+                  totalSales: 0,
+                  totalPayout: 0,
+                  profitLoss: 0,
+                  totalWinningBetAmount: 0, // To store the total bet amount for winning numbers
+                };
+              }
+
+              groupedCustomers[entry.customerName].totalSales += calculateTotalAmount(entry.parsedEntries);
+
+              const dailyResult = fetchedResults[entry.date];
+              if (dailyResult) {
+                const winningResult = entry.type === 'morning' ? dailyResult.morningResult : dailyResult.eveningResult;
+
+                if (winningResult && winningResult.length === 2) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === winningResult) {
+                      groupedCustomers[entry.customerName].totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                      groupedCustomers[entry.customerName].totalWinningBetAmount += parsedEntry.amount; // Sum winning bet amount
+                    }
+                  });
+                }
+              }
+            });
+
+            // Calculate profit/loss for each customer (Sales - Payout, no commission for this summary)
+            Object.keys(groupedCustomers).forEach(customerName => {
+              const customerData = groupedCustomers[customerName];
+              customerData.profitLoss = customerData.totalSales - customerData.totalPayout;
+            });
+
+            // Convert to array for easier rendering and sorting (e.g., by total sales descending)
+            return Object.entries(groupedCustomers).map(([customerName, data]) => ({
+              customerName,
+              ...data
+            })).sort((a, b) => b.totalSales - a.totalSales);
+          }, [calculateTotalAmount]);
+
+          // Effect to fetch and calculate per-customer monthly summary data
+          React.useEffect(() => {
+            if (!db || !dataIdentifier || !showPerCustomerMonthlySummaryModal) { // Check dataIdentifier
+              setPerCustomerMonthlySummary(null); // Clear summary when modal is closed or not ready
+              return;
+            }
+
+            setIsPerCustomerMonthlySummaryLoading(true);
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+
+            const [year, month] = currentMonth.split('-').map(Number);
+            const startOfMonth = new Date(year, month - 1, 1);
+            const endOfMonth = new Date(year, month, 0);
+
+            const fetchPerCustomerMonthlyData = async () => {
+              try {
+                const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
+                // Query all entries for the selected month
+                const qEntriesMonth = window.firebase.query(
+                  entriesCollectionRef,
+                  window.firebase.where('date', '>=', formatDate(startOfMonth)),
+                  window.firebase.where('date', '<=', formatDate(endOfMonth))
+                );
+                const entriesSnapshot = await window.firebase.getDocs(qEntriesMonth);
+                const fetchedMonthlyEntries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Fetch results for all unique dates present in the fetched entries
+                const uniqueDatesInMonthWithEntries = [...new Set(fetchedMonthlyEntries.map(entry => entry.date))];
+                const fetchedResults = {};
+                for (const dateString of uniqueDatesInMonthWithEntries) {
+                  const resultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, dateString);
+                  const resultSnap = await window.firebase.getDoc(resultDocRef);
+                  if (resultSnap.exists()) {
+                    fetchedResults[dateString] = resultSnap.data();
+                  }
+                }
+
+                // Calculate the per-customer summary
+                const perCustomerMonthlySummaryCalculated = calculatePerCustomerMonthlySummaryData(
+                  fetchedMonthlyEntries,
+                  fetchedResults
+                );
+                setPerCustomerMonthlySummary(perCustomerMonthlySummaryCalculated);
+              } catch (error) {
+                console.error("Error fetching per-customer monthly data:", error);
+                setErrorMessage("Error loading per-customer monthly summary.");
+              } finally {
+                setIsPerCustomerMonthlySummaryLoading(false); // End loading
+              }
+            };
+
+            fetchPerCustomerMonthlyData();
+          }, [db, dataIdentifier, currentMonth, showPerCustomerMonthlySummaryModal, calculatePerCustomerMonthlySummaryData]);
+
+          // --- Customer Management Functions ---
+
+          // Add a new customer or update an existing one
+          const handleAddOrUpdateCustomer = async () => {
+            if (!db || !dataIdentifier) { // Check dataIdentifier
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
+              return;
+            }
+            if (!newCustomerName.trim()) {
+              setErrorMessage("ထိုးသူအမည် ထည့်သွင်းရန် လိုအပ်ပါသည်။");
+              return;
+            }
+
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const customersCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`); // Use dataIdentifier
+
+            try {
+              if (editingCustomerId) {
+                // If editingCustomerId exists, update the existing customer
+                await window.firebase.updateDoc(window.firebase.doc(customersCollectionRef, editingCustomerId), { name: newCustomerName.trim() });
+                setErrorMessage("ထိုးသူအမည် ပြင်ဆင်ပြီးပါပြီ။");
+              } else {
+                // Otherwise, add a new customer
+                // Check for duplicate name before adding to prevent duplicates
+                const q = window.firebase.query(customersCollectionRef, window.firebase.where("name", "==", newCustomerName.trim()));
+                const querySnapshot = await window.firebase.getDocs(q);
+                if (!querySnapshot.empty) {
+                  setErrorMessage("ဤထိုးသူအမည် ရှိပြီးသား ဖြစ်ပါသည်။");
+                  return; // Stop if duplicate found
+                }
+                await window.firebase.addDoc(customersCollectionRef, { name: newCustomerName.trim(), createdAt: new Date() });
+                setErrorMessage("ထိုးသူအမည် အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။");
+              }
+              setNewCustomerName(''); // Clear input
+              setEditingCustomerId(null); // Reset editing state
+              setTimeout(() => setErrorMessage(''), 3000); // Clear message
+            } catch (e) {
+              console.error("Error managing customer:", e);
+              setErrorMessage("ထိုးသူအမည် စီမံရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+          };
+
+          // Set state to start editing a customer
+          const startEditCustomer = (customer) => {
+            setNewCustomerName(customer.name);
+            setEditingCustomerId(customer.id);
+          };
+
+          // Show confirmation modal for customer deletion
+          const confirmDeleteCustomer = (id) => {
+            setCustomerToDeleteId(id);
+            setConfirmDeleteCustomerModal(true);
+          };
+
+          // Execute customer deletion from Firestore
+          const executeDeleteCustomer = async () => {
+            if (!db || !dataIdentifier || !customerToDeleteId) { // Check dataIdentifier
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။ သို့မဟုတ် Database မရပါ။");
+              return;
+            }
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            try {
+              await window.firebase.deleteDoc(window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`, customerToDeleteId)); // Use dataIdentifier
+              setErrorMessage("ထိုးသူအမည် ဖျက်ပြီးပါပြီ။");
+              setConfirmDeleteCustomerModal(false); // Close modal
+              setCustomerToDeleteId(null); // Clear ID
+              setTimeout(() => setErrorMessage(''), 3000); // Clear message
+            } catch (e) {
+              console.error("Error deleting customer:", e);
+              setErrorMessage("ထိုးသူအမည် ဖျက်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+          };
+
+          // --- Function to handle saving the user-provided data identifier ---
+          const handleSaveDataIdentifier = () => {
+              if (!dataIdentifierInput.trim()) {
+                  setIdErrorMessage("မသိမ်းဆည်းမီ User ID သို့မဟုတ် Nickname ထည့်သွင်းပါ။");
+                  return;
+              }
+              setDataIdentifier(dataIdentifierInput.trim());
+              setIdErrorMessage(""); // Clear any previous error
+              setErrorMessage("User ID ကို အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။");
+              setTimeout(() => setErrorMessage(''), 3000);
+              console.log("Data identifier updated to:", dataIdentifierInput.trim());
+          };
+
+          // --- Utility function for copying text to clipboard ---
+          const copyToClipboard = (text) => {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+              document.execCommand('copy');
+              setShowCopyConfirmation(true);
+              setTimeout(() => setShowCopyConfirmation(false), 2000);
+            } catch (err) {
+              console.error('ကူးယူရန် မအောင်မြင်ပါ- ', err);
+              setErrorMessage('ကူးယူရန် မအောင်မြင်ပါ။');
+            }
+            document.body.removeChild(textArea);
+          };
+
+
+          // Render a loading spinner if Firebase is still initializing
+          if (isLoading) {
+            return (
+              <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center font-inter text-gray-800">
+                <Loader2 size={48} className="animate-spin text-blue-500 mb-4" />
+                <p className="text-lg font-semibold text-gray-700">ဒေတာများ တင်နေသည်...</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="min-h-screen bg-gray-100 flex flex-col font-inter text-gray-800 pb-20">
+              {/* --- Header Section (Always Visible) --- */}
+              <div className="p-4 bg-white shadow-md rounded-b-lg mb-4">
+                <div className="flex justify-between items-center mb-3">
+                  {/* Back button (visible only on 'entries' page) */}
+                  {currentPage === 'entries' && (
+                    <button onClick={() => setCurrentPage('home')} className="p-2 bg-gray-200 text-gray-700 rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-gray-300 transform active:scale-95 transition-transform" aria-label="Back to Home">
+                      <ArrowLeft size={20} />
+                    </button>
+                  )}
+                  {/* Placeholder for alignment on Home page (to keep elements centered) */}
+                  {currentPage === 'home' && (<div className="w-10"></div>)}
+
+                  {/* Date Navigation and Calendar Icon (visible only on 'home' page) */}
+                  {currentPage === 'home' && (
+                    <>
+                      {/* Previous Day Button */}
+                      <button onClick={() => handleDateChange(-1)} className="p-2 bg-blue-500 text-white rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300 transform active:scale-95 transition-transform" aria-label="Previous Day">
+                        <ChevronLeft size={20} />
+                      </button>
+                      {/* Current Date Display and Date Picker Toggle */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowDatePicker(!showDatePicker)}
+                          className="text-base font-semibold text-blue-700 py-1 px-3 rounded-md bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transform active:scale-95 transition-transform"
+                          aria-label={`Selected Date: ${new Date(currentDate).toLocaleDateString('my-MM', { weekday: 'short' })}, ${new Date(currentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                        >
+                          {new Date(currentDate).toLocaleDateString('my-MM', { weekday: 'short' })}, {new Date(currentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          <CalendarDays size={16} className="inline-block ml-1" />
+                        </button>
+                        {/* Date Picker Input (conditionally rendered) */}
+                        {showDatePicker && (
+                          <input
+                            type="date"
+                            value={currentDate}
+                            onChange={handleManualDateChange}
+                            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-2 border border-gray-300 rounded-md shadow-lg z-10"
+                          />
+                        )}
+                      </div>
+                      {/* Next Day Button */}
+                      <button onClick={() => handleDateChange(1)} className="p-2 bg-blue-500 text-white rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300 transform active:scale-95 transition-transform" aria-label="Next Day">
+                        <ChevronRight size={20} />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Result Inputs and Overall Summary Button (visible only on 'entries' page) */}
+                  {currentPage === 'entries' && (
+                    <div className="flex-1 flex justify-end items-center space-x-2">
+                      {/* Morning Result Input */}
+                      {selectedEntryType === 'morning' && (
+                        <>
+                          <label htmlFor="morningResultInput" className="text-sm font-medium text-gray-700">မနက်:</label>
+                          <input
+                            id="morningResultInput" type="text" value={localMorningResultInput} onChange={(e) => setLocalMorningResultInput(e.target.value)}
+                            onBlur={(e) => updateResult('morning', e.target.value)} className="w-16 p-1 border border-gray-300 rounded-md text-center text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            placeholder="00" maxLength="2" aria-label="Morning Result"
+                          />
+                        </>
+                      )}
+                      {/* Evening Result Input */}
+                      {selectedEntryType === 'evening' && (
+                        <>
+                          <label htmlFor="eveningResultInput" className="text-sm font-medium text-gray-700">ညနေ:</label>
+                          <input
+                            id="eveningResultInput" type="text" value={localEveningResultInput} onChange={(e) => setLocalEveningResultInput(e.target.value)}
+                            onBlur={(e) => updateResult('evening', e.target.value)} className="w-16 p-1 border border-gray-300 rounded-md text-center text-sm focus:outline-none focus:ring-1 focus:ring-green-400"
+                            placeholder="00" maxLength="2" aria-label="Evening Result"
+                          />
+                        </>
+                      )}
+                      {/* Overall Numbers Summary Button */}
+                      <button
+                        onClick={() => setShowOverallSummary(true)}
+                        className="p-2 bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center transform hover:scale-105 transition-transform focus:outline-none focus:ring-2 focus:ring-red-400 active:scale-95"
+                        title="စုစုပေါင်း ဂဏန်းစာရင်း" aria-label="Overall Numbers Summary"
+                      >
+                        <BarChart3 size={20} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons for Home Page ("ရက်ချုပ်", "လချုပ်", "တစ်ဦးချင်း လချုပ်", "ထိုးသူများ စီမံရန်") */}
+                {currentPage === 'home' && (
+                  <div className="text-center my-3 flex justify-center space-x-2 flex-wrap">
+                      {/* Daily Summary Button */}
+                      <button
+                          onClick={() => { setShowDailySummaryModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-indigo-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300 transform active:scale-95 transition-transform mb-2"
+                          title="ရက်ချုပ်စာရင်း" aria-label="Daily Summary"
+                      >
+                          <BarChart3 size={18} className="mr-2" /> ရက်ချုပ်
+                      </button>
+                      {/* Monthly Summary Button */}
+                      <button
+                          onClick={() => { setShowMonthlySummaryModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-pink-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-300 transform active:scale-95 transition-transform mb-2"
+                          title="လချုပ်စာရင်း (ကော်မရှင်ပါ)" aria-label="Monthly Summary"
+                      >
+                          <CalendarDays size={18} className="mr-2" /> လချုပ်
+                      </button>
+                      {/* Per-Customer Monthly Summary Button */}
+                      <button
+                          onClick={() => { setShowPerCustomerMonthlySummaryModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 transform active:scale-95 transition-transform mb-2"
+                          title="တစ်ဦးချင်း လချုပ် (ကော်မရှင်မပါ)" aria-label="Per Customer Monthly Summary"
+                      >
+                          <User size={18} className="mr-2" /> တစ်ဦးချင်း လချုပ်
+                      </button>
+                      {/* Manage Customers Button */}
+                      <button
+                          onClick={() => { setShowManageCustomersModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 transform active:scale-95 transition-transform mb-2"
+                          title="ထိုးသူများ စီမံရန်" aria-label="Manage Customers"
+                      >
+                          <Users size={18} className="mr-2" /> ထိုးသူများ စီမံရန်
+                      </button>
+                  </div>
+                )}
+
+                {/* User Data Identifier Input and Display */}
+                {currentPage === 'home' && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-700 font-semibold mb-2">
+                        သင့်ဒေတာများအတွက် User ID သို့မဟုတ် Nickname:
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={dataIdentifierInput}
+                        onChange={(e) => {
+                            setDataIdentifierInput(e.target.value);
+                            setIdErrorMessage(''); // Clear error on change
+                        }}
+                        placeholder="User ID သို့မဟုတ် Nickname ထည့်ပါ"
+                        className="flex-1 p-2 border border-blue-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm"
+                        aria-label="User Data Identifier Input"
+                      />
+                      <button
+                        onClick={handleSaveDataIdentifier}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transform active:scale-95 transition-transform text-sm"
+                      >
+                        User ID သိမ်းမည်
+                      </button>
+                    </div>
+                    {idErrorMessage && (
+                        <p className="text-red-600 text-xs mt-2 text-center">{idErrorMessage}</p>
+                    )}
+                    {dataIdentifier && (
+                        <p className="text-xs text-gray-500 text-center mt-2">
+                            လက်ရှိ ID: <span className="font-bold text-gray-700">{dataIdentifier}</span>
+                            <br/>
+                            <span className="text-red-500 font-bold">သတိ: ဤ ID ကိုသိသူတိုင်း သင့်ဒေတာကို ဝင်ရောက်နိုင်ပါသည်။</span>
+                        </p>
+                    )}
+                  </div>
+                )}
+
+
+                {/* Morning/Evening Result Displays for Home Page (clickable to navigate) */}
+                {currentPage === 'home' && (
+                  <div className="flex flex-col items-center space-y-4 mt-4">
+                    {/* Morning Result Row - Clickable to go to Entry Page */}
+                    <div className="flex items-center w-11/12 mx-auto px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 cursor-pointer" onClick={() => { setCurrentPage('entries'); setSelectedEntryType('morning'); }}>
+                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-200 text-gray-700 text-sm font-bold mr-3">
+                            {morningResult || '??'} {/* Display morning result or '??' */}
+                        </div>
+                        <span className="flex-1 text-base text-gray-700">မနက်</span>
+                        <span className="text-xl font-bold text-gray-800">
+                            {morningTotalSales.toLocaleString()} {/* Display total sales for morning */}
+                            {morningResult && ( // Show payout info only if morning result is available
+                                morningTotalWinningBetAmountHome > 0 ? <span className="ml-2 text-green-600">P-{morningTotalWinningBetAmountHome.toLocaleString()}</span> : <span className="ml-2 text-red-600">P-No</span>
+                            )}
+                        </span>
+                    </div>
+                    {/* Evening Result Row - Clickable to go to Entry Page */}
+                    <div className="flex items-center w-11/12 mx-auto px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 cursor-pointer" onClick={() => { setCurrentPage('entries'); setSelectedEntryType('evening'); }}>
+                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-200 text-gray-700 text-sm font-bold mr-3">
+                            {eveningResult || '??'} {/* Display evening result or '??' */}
+                        </div>
+                        <span className="flex-1 text-base text-gray-700">ညနေ</span>
+                        <span className="text-xl font-bold text-gray-800">
+                            {eveningTotalSales.toLocaleString()} {/* Display total sales for evening */}
+                            {eveningResult && ( // Show payout info only if evening result is available
+                                eveningTotalWinningBetAmountHome > 0 ? <span className="ml-2 text-green-600">P-{eveningTotalWinningBetAmountHome.toLocaleString()}</span> : <span className="ml-2 text-red-600">P-No</span>
+                            )}
+                        </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* --- Main Content Area - Conditionally rendered based on currentPage --- */}
+              {currentPage === 'entries' && (
+                <div className="flex-1 flex flex-col w-full px-4 pt-4 overflow-y-auto" style={{ paddingBottom: `${fixedInputAreaHeight + 20}px` }}>
+                  {/* Persistent Customer Buttons (Horizontal Scrollable) */}
+                  <div className="px-4 mb-4 overflow-x-auto whitespace-nowrap hide-scrollbar">
+                    {customers.length === 0 ? (
+                      <p className="text-center text-gray-500 text-sm">ထိုးသူများ စီမံရန် ထဲတွင် နာမည်များ ထည့်သွင်းပါ။</p>
+                    ) : (
+                      customers.map(customer => (
+                        <button
+                          key={customer.id} onClick={() => {
+                              console.log("Customer button clicked:", customer.name);
+                              setCustomerNameInput(customer.name); // Set customer name in input field
+                              if (inputRef.current) inputRef.current.focus(); // Focus on the entry textarea
+                          }}
+                          className="inline-flex items-center justify-center px-4 py-2 mr-2 bg-purple-100 text-purple-800 text-sm font-medium rounded-full shadow-sm hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-300 transform active:scale-95 transition-transform"
+                        >
+                          <User size={14} className="mr-1" /> {customer.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
+
+                  {/* List of Customer Entries for the selected day/type */}
+                  {Object.keys(customerDailySummaries).length === 0 ? (
+                    <p className="text-center text-gray-500 mt-8">ယနေ့အတွက် စာရင်းများမရှိသေးပါ။</p>
+                  ) : (
+                    // Iterate over customer summaries and display them
+                    Object.entries(customerDailySummaries).map(([customerName, data]) => (
+                      <div key={customerName} className="bg-white p-4 rounded-lg shadow-md mb-3 relative">
+                        <h3 className="text-base font-bold text-indigo-700 mb-1">{customerName}</h3>
+                        {/* Clickable area to view detailed entries for a customer */}
+                        <button onClick={() => { setSelectedCustomerForDetail(customerName); setShowCustomerEntries(true); }} className="w-full text-left focus:outline-none">
+                          <div className="flex justify-between items-center text-base font-semibold text-teal-700">
+                            <span>{currentDate.substring(8,10)}/{selectedEntryType === 'morning' ? 'am' : 'pm'}-{data.totalSales.toLocaleString()}</span>
+                            <ChevronRight size={20} className="text-gray-500" />
+                          </div>
+                          {/* Display payout information if results are available */}
+                          {((selectedEntryType === 'morning' && morningResult && morningResult.length === 2) || (selectedEntryType === 'evening' && eveningResult && eveningResult.length === 2)) ? (
+                            <p className={`text-sm mt-1 ${data.totalPayout > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {data.winningBetAmount > 0 && data.winningNumber ? (`(${data.winningNumber})P-${data.winningBetAmount.toLocaleString()}`) : (`(${selectedEntryType === 'morning' ? morningResult : eveningResult})P-No`)}
+                            </p>
+                          ) : null}
+                        </button>
+                        {/* Copy button for the two summary lines */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent button click from triggering the parent's onClick
+                            const firstLine = `${currentDate.substring(8,10)}/${selectedEntryType === 'morning' ? 'am' : 'pm'}-${data.totalSales.toLocaleString()}`;
+                            let secondLine = '';
+                            const currentResult = selectedEntryType === 'morning' ? morningResult : eveningResult;
+                            if (currentResult && currentResult.length === 2) {
+                              secondLine = data.winningBetAmount > 0 && data.winningNumber ? `(${currentResult})P-${data.winningBetAmount.toLocaleString()}` : `(${currentResult})P-No`;
+                            }
+                            const textToCopy = `${firstLine}\n${secondLine}`;
+                            copyToClipboard(textToCopy.trim());
+                          }}
+                          className="absolute top-2 right-2 p-2 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
+                          title="ဤစာရင်းကို ကူးယူပါ" aria-label="Copy Entry Summary"
+                        >
+                          <Copy size={16} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* --- Input Area at the bottom of the screen (fixed position) --- */}
+              {currentPage === 'entries' && (
+                <div ref={fixedInputAreaRef} className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-top rounded-t-xl z-30">
+                  {/* Error Message Display */}
+                  {errorMessage && (<p className="text-red-600 text-sm mb-2 text-center">{errorMessage}</p>)}
+                  {/* Customer Name Input */}
+                  <div className="mb-2 w-full">
+                    <input
+                      type="text" className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 shadow-sm w-full placeholder-gray-400"
+                      placeholder="ထိုးသူအမည် ထည့်ပါ" value={customerNameInput} onChange={(e) => {
+                          console.log("Customer name input changed to:", e.target.value);
+                          setCustomerNameInput(e.target.value);
+                      }}
+                      onFocus={() => setIsCustomerNameInputFocused(true)} onBlur={() => setIsCustomerNameInputFocused(false)} aria-label="Customer Name"
+                    />
+                  </div>
+                  {/* Entry Textarea and Add Button */}
+                  <div className="flex items-end space-x-2 w-full">
+                    <textarea
+                      ref={inputRef} // Ref to directly control textarea properties
+                      className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 resize-none h-24 shadow-sm placeholder-gray-400"
+                      placeholder="ထိုးကြေးပုံစံထည့်ပါ (ဥပမာ: 12=100, 1ပါ100, ပါဝါ100, နက္ခတ်100, အပူး100, ညီကို100, 1234ခွေ100, 1ဘရိတ်100)"
+                      value={inputEntry} onChange={(e) => setInputEntry(e.target.value)} aria-label="Entry Text"
+                    ></textarea>
+                    {/* Add Entry Button */}
+                    <button
+                      onClick={addEntry}
+                      className="p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+                      aria-label="Add Entry"
+                    >
+                      <Plus size={28} /> {/* Plus icon */}
+                    </button>
+                  </div>
+                  <div className="h-8"></div> {/* Spacer for bottom padding */}
+                </div>
+              )}
+
+              {/* --- Modals Section (Conditionally Rendered) --- */}
+
+              {/* Customer Entries Detail Modal */}
+              {showCustomerEntries && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-gray-800">{selectedCustomerForDetail} ၏ စာရင်းများ</h2>
+                      <button onClick={() => setShowCustomerEntries(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Customer Entries">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    {/* Modal Content - List of individual entries */}
+                    <div className="p-4 overflow-y-auto flex-1">
+                      {customerDailySummaries[selectedCustomerForDetail]?.entries.map(entry => (
+                        <div key={entry.id} className="bg-gray-50 p-3 rounded-md mb-2 shadow-sm">
+                          <p className="text-sm text-gray-700 font-medium">{entry.originalInput}</p>
+                          <p className="text-xs text-gray-500">
+                            စုစုပေါင်း: {calculateTotalAmount(entry.parsedEntries).toLocaleString()}
+                          </p>
+                          <div className="flex justify-end space-x-2 mt-2">
+                            {/* Edit Entry Button */}
+                            <button
+                              onClick={() => handleEditEntry(entry)}
+                              className="p-1 rounded-full text-blue-500 hover:bg-blue-100 transform active:scale-95 transition-transform" aria-label="Edit Entry"
+                            >
+                              <Edit size={18} />
+                            </button>
+                            {/* Delete Entry Button */}
+                            <button
+                              onClick={() => confirmDeleteEntry(entry.id)}
+                              className="p-1 rounded-full text-red-500 hover:bg-red-100 transform active:scale-95 transition-transform" aria-label="Delete Entry"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                     {/* Modal Footer - Total Sales for the customer */}
+                     <div className="p-4 border-t text-right">
+                        <span className="text-base font-bold text-gray-800">
+                            စုစုပေါင်း: {customerDailySummaries[selectedCustomerForDetail]?.totalSales.toLocaleString()}
+                        </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Overall Numbers Summary Modal */}
+              {showOverallSummary && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col relative">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-purple-700">စုစုပေါင်း ဂဏန်းစာရင်း ({uniqueNumbersCount})ကွက်</h2>
+                      <button onClick={() => setShowOverallSummary(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Overall Summary">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    {/* Modal Content - List of numbers and their aggregated amounts */}
+                    <div className="p-4 overflow-y-auto flex-1">
+                      {summaryArray.length === 0 ? (
+                        <p className="text-center text-gray-500 text-sm">စာရင်းမရှိသေးပါ။</p>
+                      ) : (
+                        summaryArray.map((item, index) => (<p key={index} className="text-base text-gray-700 mb-1">{item}</p>))
+                      )}
+                    </div>
+                    {/* Modal Footer - Total overall amount and Copy button */}
+                    <div className="p-4 border-t flex justify-between items-center">
+                      <span className="text-lg font-bold text-blue-700">Total = {totalOverallAmount.toLocaleString()}</span>
+                      <button
+                        onClick={() => {
+                          const textToCopy = summaryArray.join('\n') + `\nTotal = ${totalOverallAmount.toLocaleString()}`;
+                          copyToClipboard(textToCopy);
+                        }}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
+                        aria-label="Copy Summary"
+                      >
+                        <Copy size={20} className="mr-2" /> ကူးယူမည်
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Daily Summary Modal (Profit/Loss for current day) */}
+              {showDailySummaryModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-orange-700">အမြတ်အရှုံး စာရင်း ({currentDate})</h2>
+                      <button onClick={() => setShowDailySummaryModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Summary">
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    {/* Modal Content - Summary details */}
+                    <div className="p-4">
+                      <p className="text-sm text-gray-600 text-center mb-4">ဤစာရင်းသည် လက်ရှိထည့်သွင်းထားသော ဒေတာအတွက်သာ ဖြစ်ပါသည်။</p>
+                      <div className="grid grid-cols-2 gap-2 text-base">
+                        <span className="font-medium text-gray-600">ရောင်းရငွေ:</span>
+                        <span className="text-right text-gray-800">{dailySummary.totalSales.toLocaleString()} ကျပ်</span>
+
+                        <span className="font-medium text-gray-600">ကော်မရှင်:</span>
+                        <span className="text-right text-gray-800">{dailySummary.commission.toLocaleString()} ကျပ်</span>
+
+                        <span className="font-medium text-gray-600">ပေါက်:</span>
+                        <span className="text-right text-gray-800">{dailySummary.totalWinningBetAmount.toLocaleString()} ကျပ်</span>
+
+                        <span className="font-medium text-gray-600">ယော်ငွေ:</span>
+                        <span className="text-right text-gray-800">{dailySummary.totalPayout.toLocaleString()} ကျပ်</span>
+
+                        {/* Profit/Loss Line */}
+                        <div className="border-t pt-4 mt-4 col-span-2">
+                          <div className={`flex justify-between items-center text-lg font-bold ${dailySummary.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <span>{dailySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:'}</span>
+                            <span>{Math.abs(dailySummary.profitLoss).toLocaleString()} ကျပ်</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Monthly Summary Modal (Overall Profit/Loss for a month) */}
+              {showMonthlySummaryModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col relative">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-pink-700">လချုပ်စာရင်း ({currentMonth})</h2>
+                      <button onClick={() => setShowMonthlySummaryModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Monthly Summary">
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    {/* Loading State for Monthly Summary */}
+                    {isMonthlySummaryLoading ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8">
+                        <Loader2 size={40} className="animate-spin text-pink-500 mb-4" />
+                        <p className="text-md text-gray-600">လချုပ်ဒေတာများ တင်နေသည်...</p>
+                      </div>
+                    ) : (
+                      <>
+                      <div className="p-4 flex-1 overflow-y-auto">
+                        {/* Month Navigation */}
+                        <div className="flex justify-center items-center space-x-2 mb-4">
+                          <button onClick={() => handleMonthChange(-1)} className="p-2 bg-pink-100 text-pink-700 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-300 transform active:scale-95 transition-transform" aria-label="Previous Month">
+                            <ChevronLeft size={20} />
+                          </button>
+                          <input
+                            type="month"
+                            value={currentMonth}
+                            onChange={handleManualMonthChange}
+                            className="p-2 border border-gray-300 rounded-md text-center text-base font-semibold focus:outline-none focus:ring-1 focus:ring-pink-400"
+                            aria-label="Select Month"
+                          />
+                          <button onClick={() => handleMonthChange(1)} className="p-2 bg-pink-100 text-pink-700 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-300 transform active:scale-95 transition-transform" aria-label="Next Month">
+                            <ChevronRight size={20} />
+                          </button>
+                        </div>
+
+                        {/* Monthly Summary Data Display */}
+                        {monthlySummary ? (
+                          <div className="grid grid-cols-2 gap-2 text-base">
+                            <span className="font-medium text-gray-600">ရောင်းရငွေ:</span>
+                            <span className="text-right text-gray-800">{monthlySummary.totalSales.toLocaleString()} ကျပ်</span>
+
+                            <span className="font-medium text-gray-600">ကော်မရှင်:</span>
+                            <span className="text-right text-gray-800">{monthlySummary.commission.toLocaleString()} ကျပ်</span>
+
+                            <span className="font-medium text-gray-600">ပေါက်:</span>
+                            <span className="text-right text-gray-800">{monthlySummary.totalWinningBetAmount.toLocaleString()} ကျပ်</span>
+
+                            <span className="font-medium text-gray-600">ယော်ငွေ:</span>
+                            <span className="text-right text-gray-800">{monthlySummary.totalPayout.toLocaleString()} ကျပ်</span>
+
+                            {/* Profit/Loss Line */}
+                            <div className="border-t pt-4 mt-4 col-span-2">
+                              <div className={`flex justify-between items-center text-lg font-bold ${monthlySummary.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                <span>{monthlySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:'}</span>
+                                <span>{Math.abs(monthlySummary.profitLoss).toLocaleString()} ကျပ်</span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-center text-gray-500 mt-4">ဤလအတွက် စာရင်းမရှိသေးပါ။</p>
+                        )}
+                      </div>
+                      {/* Modal Footer with Copy Button */}
+                      {monthlySummary && (
+                        <div className="p-4 border-t text-center">
+                            <button
+                                onClick={() => {
+                                    const header = `လချုပ်စာရင်း (${currentMonth})\n--------------------\n`;
+                                    const sales = `ရောင်းရငွေ:\t${monthlySummary.totalSales.toLocaleString()} ကျပ်\n`;
+                                    const commission = `ကော်မရှင်:\t\t${monthlySummary.commission.toLocaleString()} ကျပ်\n`;
+                                    const winningBet = `ပေါက်:\t\t\t${monthlySummary.totalWinningBetAmount.toLocaleString()} ကျပ်\n`;
+                                    const payout = `ယော်ငွေ:\t\t${monthlySummary.totalPayout.toLocaleString()} ကျပ်\n`;
+                                    const divider = `--------------------\n`;
+                                    const profitLossLabel = monthlySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:';
+                                    const profitLoss = `${profitLossLabel}\t\t${Math.abs(monthlySummary.profitLoss).toLocaleString()} ကျပ်`;
+                                    const textToCopy = header + sales + commission + winningBet + payout + divider + profitLoss;
+                                    copyToClipboard(textToCopy);
+                                }}
+                                className="flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
+                                aria-label="Copy Monthly Summary"
+                            >
+                                <Copy size={20} className="mr-2" /> ကူးယူမည်
+                            </button>
+                        </div>
+                      )}
+                      </>
+                    )}
+                    {showCopyConfirmation && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fade-in-out">
+                        စာရင်းကို ကူးယူပြီးပါပြီ။
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Per-Customer Monthly Summary Modal */}
+              {showPerCustomerMonthlySummaryModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col relative">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-teal-700">တစ်ဦးချင်း လချုပ် ({currentMonth})</h2>
+                      <button onClick={() => setShowPerCustomerMonthlySummaryModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Per-Customer Monthly Summary">
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    {/* Loading State for Per-Customer Monthly Summary */}
+                    {isPerCustomerMonthlySummaryLoading ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8">
+                        <Loader2 size={40} className="animate-spin text-teal-500 mb-4" />
+                        <p className="text-md text-gray-600">ဒေတာများ တင်နေသည်...</p>
+                      </div>
+                    ) : (
+                      <div className="p-4 flex-1 overflow-y-auto">
+                        {/* Month Navigation */}
+                        <div className="flex justify-center items-center space-x-2 mb-4">
+                          <button onClick={() => handleMonthChange(-1)} className="p-2 bg-teal-100 text-teal-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-300 transform active:scale-95 transition-transform" aria-label="Previous Month">
+                            <ChevronLeft size={20} />
+                          </button>
+                          <input
+                            type="month"
+                            value={currentMonth}
+                            onChange={handleManualMonthChange}
+                            className="p-2 border border-gray-300 rounded-md text-center text-base font-semibold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                            aria-label="Select Month"
+                          />
+                          <button onClick={() => handleMonthChange(1)} className="p-2 bg-teal-100 text-teal-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-300 transform active:scale-95 transition-transform" aria-label="Next Month">
+                            <ChevronRight size={20} />
+                          </button>
+                        </div>
+
+                        {/* Per-Customer Summary Data Display */}
+                        {perCustomerMonthlySummary && perCustomerMonthlySummary.length > 0 ? (
+                            <div className="space-y-3">
+                                {perCustomerMonthlySummary.map((customerData, index) => (
+                                    <div key={index} className="bg-gray-50 p-3 rounded-md shadow-sm border border-gray-200 relative">
+                                        {/* Individual Copy Button */}
+                                        <button
+                                            onClick={() => {
+                                                const customerName = customerData.customerName;
+                                                const salesLine = `ထိုးကြေး=${customerData.totalSales.toLocaleString()}`;
+                                                const winningLine = customerData.totalWinningBetAmount > 0
+                                                    ? `P-${customerData.totalWinningBetAmount.toLocaleString()}=${customerData.totalPayout.toLocaleString()}`
+                                                    : `P-No`;
+                                                const profitLossLabel = customerData.profitLoss < 0 ? 'ပေးရန်' : 'ရရန်';
+                                                const profitLossLine = `${profitLossLabel}=${Math.abs(customerData.profitLoss).toLocaleString()}`;
+                                                const textToCopy = `${customerName}\n\n${salesLine}\n${winningLine}\n${profitLossLine}`;
+                                                copyToClipboard(textToCopy);
+                                            }}
+                                            className="absolute top-2 right-2 p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
+                                            title="ဤစာရင်းကို ကူးယူပါ"
+                                            aria-label="Copy Customer Summary"
+                                        >
+                                            <Copy size={14} />
+                                        </button>
+
+                                        {/* Customer Name */}
+                                        <h3 className="text-md font-bold text-gray-800 mb-2 pr-8">{customerData.customerName}</h3>
+
+                                        {/* Details in new format */}
+                                        <div className="space-y-1 text-sm">
+                                            <p className="text-gray-700">ထိုးကြေး={customerData.totalSales.toLocaleString()}</p>
+                                            <p className="text-gray-700">
+                                                {customerData.totalWinningBetAmount > 0
+                                                    ? `P-${customerData.totalWinningBetAmount.toLocaleString()}=${customerData.totalPayout.toLocaleString()}`
+                                                    : 'P-No'
+                                                }
+                                            </p>
+                                            <p className={`font-bold ${customerData.profitLoss < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                {customerData.profitLoss < 0 ? 'ပေးရန်' : 'ရရန်'}=${Math.abs(customerData.profitLoss).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500 mt-4">ဤလအတွက် တစ်ဦးချင်းစာရင်းမရှိသေးပါ။</p>
+                        )}
+                      </div>
+                    )}
+                    {showCopyConfirmation && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fade-in-out">
+                        စာရင်းကို ကူးယူပြီးပါပြီ။
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Manage Customers Modal */}
+              {showManageCustomersModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-green-700">ထိုးသူများ စီမံရန်</h2>
+                      <button onClick={() => { setShowManageCustomersModal(false); setNewCustomerName(''); setEditingCustomerId(null); setErrorMessage(''); }} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Manage Customers">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    {/* Modal Content */}
+                    <div className="p-4">
+                      {errorMessage && (<p className="text-red-600 text-sm mb-2 text-center animate-fade-in-out">{errorMessage}</p>)}
+                      {/* Add/Edit Customer Input and Button */}
+                      <div className="flex space-x-2 mb-4">
+                        <input
+                          type="text"
+                          value={newCustomerName}
+                          onChange={(e) => setNewCustomerName(e.target.value)}
+                          placeholder="ထိုးသူအမည် ထည့်/ပြင်ဆင်ပါ"
+                          className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-400"
+                          aria-label="Customer Name Input"
+                        />
+                        <button
+                          onClick={handleAddOrUpdateCustomer}
+                          className="px-4 py-2 bg-green-600 text-white rounded-md shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
+                        >
+                          {editingCustomerId ? 'ပြင်ဆင်မည်' : 'ထည့်မည်'} {/* Button text changes based on mode */}
+                        </button>
+                      </div>
+                      <h3 className="text-md font-bold text-gray-700 mb-2">လက်ရှိ ထိုးသူများ:</h3>
+                      {/* List of Existing Customers */}
+                      <div className="max-h-60 overflow-y-auto hide-scrollbar border border-gray-200 rounded-md p-2">
+                        {customers.length === 0 ? (
+                          <p className="text-center text-gray-500 text-sm">ထိုးသူမရှိသေးပါ။</p>
+                        ) : (
+                          customers.map(customer => (
+                            <div key={customer.id} className="flex justify-between items-center bg-gray-50 p-2 rounded-md mb-2 shadow-sm">
+                              <span className="text-gray-700 font-medium">{customer.name}</span>
+                              <div className="flex space-x-2">
+                                {/* Edit Customer Button */}
+                                <button onClick={() => startEditCustomer(customer)} className="p-1 rounded-full text-blue-500 hover:bg-blue-100 transform active:scale-95 transition-transform" aria-label="Edit Customer">
+                                  <Edit size={16} />
+                                </button>
+                                {/* Delete Customer Button */}
+                                <button onClick={() => confirmDeleteCustomer(customer.id)} className="p-1 rounded-full text-red-500 hover:bg-red-100 transform active:scale-95 transition-transform" aria-label="Delete Customer">
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Details Modal (for parsing input errors) */}
+              {showErrorModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b bg-red-100">
+                      <h2 className="text-lg font-bold text-red-700">ထိုးကြေးပုံစံ မှားယွင်းမှု</h2>
+                      <button onClick={() => setShowErrorModal(false)} className="text-red-500 hover:text-red-700 transform active:scale-95 transition-transform" aria-label="Close Error Details">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    {/* Modal Content - List of errors */}
+                    <div className="p-4 overflow-y-auto flex-1">
+                      <p className="text-sm text-gray-700 mb-4">
+                        အောက်ပါ ထိုးကြေးပုံစံများတွင် မှားယွင်းမှုများ တွေ့ရှိရပါသည်။
+                        <br/>
+                        <span className="font-semibold text-blue-600">ထိုးကြေးထည့်ရန်နေရာတွင် ပြန်လည်ပြင်ဆင်ပြီး ထပ်မံထည့်သွင်းပါ။</span>
+                      </p>
+                      {errorDetails.map((err, index) => (
+                        <div key={index} className="bg-red-50 p-3 rounded-md mb-2 border border-red-200">
+                          <p className="font-medium text-red-800">"{err.originalLine}"</p>
+                          <p className="text-xs text-red-600 mt-1">- {err.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Modal Footer */}
+                    <div className="p-4 border-t text-right">
+                      <button
+                        onClick={() => setShowErrorModal(false)}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transform active:scale-95 transition-transform"
+                      >
+                        နားလည်ပါပြီ
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Delete Confirmation Modal (for entries) */}
+              {showConfirmDeleteModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-xs">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b bg-yellow-100">
+                      <h2 className="text-lg font-bold text-yellow-700">အတည်ပြုရန်</h2>
+                      <button onClick={() => setShowConfirmDeleteModal(false)} className="text-yellow-500 hover:text-yellow-700 transform active:scale-95 transition-transform" aria-label="Close Confirmation">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    {/* Modal Content */}
+                    <div className="p-4 text-center">
+                      <p className="text-sm text-gray-700 mb-4">ဤစာရင်းကို ဖျက်ရန် သေချာပါလား။</p>
+                      <div className="flex justify-around space-x-4">
+                        <button
+                          onClick={() => setShowConfirmDeleteModal(false)}
+                          className="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transform active:scale-95 transition-transform"
+                        >
+                          မဖျက်တော့ဘူး
+                        </button>
+                        <button
+                          onClick={executeDeleteEntry}
+                          className="px-6 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transform active:scale-95 transition-transform"
+                        >
+                          ဖျက်မည်
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Customer Delete Confirmation Modal */}
+              {confirmDeleteCustomerModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-xs">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b bg-yellow-100">
+                      <h2 className="text-lg font-bold text-yellow-700">အတည်ပြုရန်</h2>
+                      <button onClick={() => setConfirmDeleteCustomerModal(false)} className="text-yellow-500 hover:text-yellow-700 transform active:scale-95 transition-transform" aria-label="Close Confirmation">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    {/* Modal Content */}
+                    <div className="p-4 text-center">
+                      <p className="text-sm text-gray-700 mb-4">ဤထိုးသူအမည်ကို ဖျက်ရန် သေချာပါလား။</p>
+                      <div className="flex justify-around space-x-4">
+                        <button
+                          onClick={() => setConfirmDeleteCustomerModal(false)}
+                          className="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transform active:scale-95 transition-transform"
+                        >
+                          မဖျက်တော့ဘူး
+                        </button>
+                        <button
+                          onClick={executeDeleteCustomer}
+                          className="px-6 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transform active:scale-95 transition-transform"
+                        >
+                          ဖျက်မည်
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        // Render the App component
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
+
