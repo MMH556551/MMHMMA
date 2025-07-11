@@ -57,19 +57,18 @@
     <!-- Firebase SDKs CDNs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
-        // import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-analytics.js"; // Analytics not used in React code
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
         import { getFirestore, collection, query, onSnapshot, addDoc, setDoc, deleteDoc, doc, getDoc, getDocs, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
 
         // Expose Firebase functions and objects globally for the Babel script
         window.firebase = {
             initializeApp,
-            getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged,
             getFirestore, collection, query, onSnapshot, addDoc, setDoc, deleteDoc, doc, getDoc, getDocs, updateDoc, where
         };
 
-        // Your web app's Firebase configuration (provided by user)
-        window.__app_id = "1:602585837585:web:470e15eb4a5fd4d64d81b0"; // Directly from user provided appId
+        // Your web app's Firebase configuration (UPDATED with new values)
+        window.__app_id = "1:602585837585:web:470e15eb4a5fd4d64d81b0"; // Updated App ID
         window.__firebase_config = JSON.stringify({
             apiKey: "AIzaSyDUf0QF4GqMb6s9ODTUiX7aTHRTR0YUqcE",
             authDomain: "html-3ce83.firebaseapp.com",
@@ -102,6 +101,25 @@
           return `${year}-${month}`;
         };
 
+        // Helper function to get the start of the week (Monday)
+        const getStartOfWeek = (dateString) => {
+          const d = new Date(dateString);
+          d.setHours(0, 0, 0, 0); // Clear time component
+          const dayOfWeek = d.getDay(); // 0 for Sunday, 1 for Monday, ..., 6 for Saturday
+          // Adjust to Monday. If Sunday (0), go back 6 days to Monday of previous week. Otherwise, go back to Monday of current week.
+          let diff = d.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+          const startOfWeek = new Date(d.setDate(diff));
+          return formatDate(startOfWeek);
+        };
+
+        // Helper function to get the end of the week (Sunday)
+        const getEndOfWeek = (dateString) => {
+          const startOfWeek = new Date(getStartOfWeek(dateString));
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6); // 6 days after Monday is Sunday
+          return formatDate(endOfWeek);
+        };
+
         // Helper function to generate permutations for "kway" entries (e.g., "123ခွေ100" -> "12","13","21","23","31","32")
         const generateKwayPermutations = (digitsString) => {
           const uniqueDigits = Array.from(new Set(digitsString.split(''))).sort();
@@ -132,6 +150,8 @@
                 numbers.add(`${i}${j}`);
               }
             }
+            // Also add the reversed number if it's not a double (e.g., for 1, 01 and 10)
+            // No, brake is just sum, not permutation. So 01 and 10 are distinct in sum.
           }
           return Array.from(numbers).sort();
         };
@@ -152,6 +172,7 @@
         const ArrowLeft = ({ size = 20, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
         const Loader2 = ({ size = 48, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
         const Users = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+        const LogOut = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="17 16 22 12 17 8"/><line x1="22" x2="10" y1="12" y2="12"/></svg>;
 
 
         // Main App Component
@@ -159,18 +180,13 @@
           // --- Firebase States ---
           const [db, setDb] = React.useState(null);
           const [auth, setAuth] = React.useState(null);
-          const [userId, setUserId] = React.useState(null); // Firebase Auth UID
+          const [user, setUser] = React.useState(null); // Firebase User object (null if not logged in)
           const [isLoading, setIsLoading] = React.useState(true); // Initial loading state for Firebase init and data fetch
 
-          // --- Data Identifier State (for persistence across sessions) ---
-          const [dataIdentifier, setDataIdentifier] = React.useState(() => {
-              // Initialize from localStorage if available, otherwise empty
-              const savedId = localStorage.getItem('user_data_identifier');
-              return savedId || '';
-          });
-          const [dataIdentifierInput, setDataIdentifierInput] = React.useState(dataIdentifier); // Input field state for data identifier
-          const [idErrorMessage, setIdErrorMessage] = React.useState(''); // Error message for data identifier input
-          const [showDataIdentifierModal, setShowDataIdentifierModal] = React.useState(false); // New state for modal visibility
+          // --- Authentication States ---
+          const [email, setEmail] = React.useState('');
+          const [password, setPassword] = React.useState('');
+          const [authError, setAuthError] = React.useState('');
 
           // --- Date and Result States ---
           const [currentDate, setCurrentDate] = React.useState(formatDate(new Date()));
@@ -196,7 +212,7 @@
           const [isCustomerNameInputFocused, setIsCustomerNameInputFocused] = React.useState(false); // For managing customer name input focus
 
           // --- UI/Modal Control States ---
-          const [errorMessage, setErrorMessage] = React.useState(''); // Global error message
+          const [errorMessage, setErrorMessage] = React.useState(''); // Global error message for general app operations
           const [showErrorModal, setShowErrorModal] = React.useState(false); // Controls error details modal visibility
           const [errorDetails, setErrorDetails] = React.useState([]); // Details of parsing errors
           const [showCustomerEntries, setShowCustomerEntries] = React.useState(false); // Controls individual customer entries detail modal visibility
@@ -218,6 +234,19 @@
           const [perCustomerMonthlySummary, setPerCustomerMonthlySummary] = React.useState(null); // Data for per-customer monthly summary
           const [showPerCustomerMonthlySummaryModal, setShowPerCustomerMonthlySummaryModal] = React.useState(false); // Controls per-customer monthly summary modal visibility
           const [isPerCustomerMonthlySummaryLoading, setIsPerCustomerMonthlySummaryLoading] = React.useState(false); // Loading state for per-customer monthly summary
+
+          // --- Weekly Summary States ---
+          const [showWeeklySummaryModal, setShowWeeklySummaryModal] = React.useState(false);
+          const [currentWeekStartDate, setCurrentWeekStartDate] = React.useState(() => {
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0 for Sunday, 1 for Monday, etc.
+            // Adjust to Monday. If Sunday (0), go back 6 days to Monday of previous week. Otherwise, go back to Monday of current week.
+            const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            return formatDate(new Date(today.setDate(diff)));
+          });
+          const [weeklySummaryData, setWeeklySummaryData] = React.useState(null);
+          const [isWeeklySummaryLoading, setIsWeeklySummaryLoading] = React.useState(false);
+
 
           // --- Customer Management States ---
           const [showManageCustomersModal, setShowManageCustomersModal] = React.useState(false); // Controls customer management modal visibility
@@ -244,11 +273,8 @@
 
           // --- Firebase Initialization and Authentication ---
           React.useEffect(() => {
-            // Access global variables defined in the module script
             const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
             const firebaseConfig = typeof window.__firebase_config !== 'undefined' ? JSON.parse(window.__firebase_config) : {};
-            const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : '';
-
 
             if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
               console.error("Firebase config is missing. Data persistence will not work.");
@@ -256,7 +282,6 @@
               return;
             }
 
-            // Use the globally exposed Firebase functions
             const app = window.firebase.initializeApp(firebaseConfig);
             const database = window.firebase.getFirestore(app);
             const authInstance = window.firebase.getAuth(app);
@@ -264,127 +289,102 @@
             setAuth(authInstance);
 
             // Set up authentication state listener
-            const unsubscribeAuth = window.firebase.onAuthStateChanged(authInstance, async (user) => {
-              if (user) {
-                setUserId(user.uid);
-                console.log("Firebase Auth State Changed: Logged in as", user.uid);
+            const unsubscribeAuth = window.firebase.onAuthStateChanged(authInstance, (currentUser) => {
+              setUser(currentUser);
+              setIsLoading(false); // Auth state is determined, stop loading
+              if (currentUser) {
+                console.log("Firebase Auth State Changed: Logged in as", currentUser.uid);
               } else {
-                console.log("Firebase Auth State Changed: No user, attempting anonymous sign-in or custom token.");
-                try {
-                  // Use __initial_auth_token if available for seamless login
-                  if (initialAuthToken) {
-                    await window.firebase.signInWithCustomToken(authInstance, initialAuthToken);
-                  } else {
-                    // Otherwise, sign in anonymously
-                    await window.firebase.signInAnonymously(authInstance);
-                  }
-                } catch (error) {
-                  console.error("Firebase Auth Error:", error);
-                  setErrorMessage("Authentication failed. Please try again.");
-                }
+                console.log("Firebase Auth State Changed: No user logged in.");
               }
-              setIsLoading(false); // Auth is ready, stop initial loading indicator
             });
 
             return () => unsubscribeAuth(); // Cleanup auth listener on component unmount
           }, []); // Run once on component mount
 
-          // --- Effect to manage dataIdentifier persistence in localStorage ---
-          React.useEffect(() => {
-              if (dataIdentifier) {
-                  localStorage.setItem('user_data_identifier', dataIdentifier);
-              } else {
-                  localStorage.removeItem('user_data_identifier');
-              }
-          }, [dataIdentifier]);
-
           // --- Firestore Data Fetching (Entries, Daily Results, and Master Customers) ---
           React.useEffect(() => {
-            if (!db || !dataIdentifier) { // Now depends on dataIdentifier, not userId
-              // If db or dataIdentifier is not yet available, skip fetching
+            // Only fetch data if DB is initialized and a user is logged in
+            if (!db || !user) {
+              // Clear data if user logs out or DB not ready
+              setEntries([]);
+              setMorningResult('');
+              setEveningResult('');
+              setLocalMorningResultInput('');
+              setLocalEveningResultInput('');
+              setCustomers([]);
               return;
             }
 
             const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const userId = user.uid; // Use the logged-in user's UID
 
-            // IMPORTANT: Firestore path now uses dataIdentifier
-            // This requires Firebase security rules to allow read/write for any authenticated user
-            // to collections under `artifacts/${appId}/data_by_identifier/${dataIdentifier}/`
-            // Example Rule:
-            // match /artifacts/{appId}/data_by_identifier/{dataIdentifier}/{documents=**} {
-            //   allow read, write: if request.auth != null; // WARNING: This makes data accessible if dataIdentifier is known!
-            // }
-
-            // 1. Fetch Entries for the current date
-            const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
+            // 1. Fetch Entries for the current date for the logged-in user
+            const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/entries`);
             const qEntries = window.firebase.query(entriesCollectionRef, window.firebase.where('date', '==', currentDate));
 
             const unsubscribeEntries = window.firebase.onSnapshot(qEntries, (snapshot) => {
               const fetchedEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
               setEntries(fetchedEntries);
-              console.log(`Fetched ${fetchedEntries.length} entries for ${currentDate} under ID: ${dataIdentifier}.`);
+              console.log(`Fetched ${fetchedEntries.length} entries for ${currentDate} for user ${userId}.`);
             }, (error) => {
               console.error("Error fetching entries:", error);
               setErrorMessage("Error loading entries.");
             });
 
-            // 2. Fetch Daily Results for the current date
-            const dailyResultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, currentDate);
+            // 2. Fetch Daily Results for the current date (these are public, not user-specific)
+            // NOTE: The dailyResults collection is still under data_by_identifier in your original code.
+            // If this is meant to be a public, admin-managed result, it should ideally be in a top-level collection like /public/dailyResults.
+            // For now, I'm keeping it as is, assuming it's a shared result for the 'appId' context.
+            const dailyResultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/public/dailyResults`, currentDate); // Assuming public results
             const unsubscribeResults = window.firebase.onSnapshot(dailyResultDocRef, (docSnap) => {
               if (docSnap.exists()) {
                 const data = docSnap.data();
                 setMorningResult(data.morningResult || '');
                 setEveningResult(data.eveningResult || '');
-                // Update local input states to reflect fetched results
                 setLocalMorningResultInput(data.morningResult || '');
                 setLocalEveningResultInput(data.eveningResult || '');
-                console.log(`Fetched results for ${currentDate} under ID: ${dataIdentifier}: Morning=${data.morningResult}, Evening=${data.eveningResult}`);
+                console.log(`Fetched results for ${currentDate}: Morning=${data.morningResult}, Evening=${data.eveningResult}`);
               } else {
-                // If no results for the current date, reset them
                 setMorningResult('');
                 setEveningResult('');
                 setLocalMorningResultInput('');
                 setLocalEveningResultInput('');
-                console.log(`No results found for ${currentDate} under ID: ${dataIdentifier}.`);
+                console.log(`No results found for ${currentDate}.`);
               }
             }, (error) => {
               console.error("Error fetching daily results:", error);
               setErrorMessage("Error loading daily results.");
             });
 
-            // 3. Fetch Master Customer List
-            const customersCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`);
+            // 3. Fetch Master Customer List for the logged-in user
+            const customersCollectionRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/customers`);
             const qCustomers = window.firebase.query(customersCollectionRef);
             const unsubscribeCustomers = window.firebase.onSnapshot(qCustomers, (snapshot) => {
                 const fetchedCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Sort customers alphabetically by name for consistent display
                 setCustomers(fetchedCustomers.sort((a, b) => a.name.localeCompare(b.name)));
-                console.log(`Fetched ${fetchedCustomers.length} master customers under ID: ${dataIdentifier}.`);
+                console.log(`Fetched ${fetchedCustomers.length} master customers for user ${userId}.`);
             }, (error) => {
                 console.error("Error fetching master customers:", error);
                 setErrorMessage("Error loading customer list.");
             });
 
-            // Cleanup listeners on unmount or when db/dataIdentifier/currentDate changes
             return () => {
               unsubscribeEntries();
               unsubscribeResults();
-              unsubscribeCustomers(); // Cleanup customer listener
-              // Reset state when date changes to avoid showing old data before new data loads
+              unsubscribeCustomers();
               setEntries([]);
               setMorningResult('');
               setEveningResult('');
               setLocalMorningResultInput('');
               setLocalEveningResultInput('');
             };
-          }, [db, dataIdentifier, currentDate]); // Rerun when db, dataIdentifier, or currentDate changes
+          }, [db, user, currentDate]); // Rerun when db, user, or currentDate changes
 
           // --- Recalculate Home Page Totals (Sales, Payouts, Winning Bet Amounts) ---
-          // This effect runs whenever 'entries', 'morningResult', or 'eveningResult' change
           React.useEffect(() => {
             const payoutRatePer100 = 8000; // Payout rate: 8000 for every 100 bet
 
-            // Calculate total sales for morning and evening
             const currentMorningTotal = entries
               .filter(entry => entry.type === 'morning')
               .reduce((sum, entry) => sum + calculateTotalAmount(entry.parsedEntries), 0);
@@ -395,7 +395,6 @@
               .reduce((sum, entry) => sum + calculateTotalAmount(entry.parsedEntries), 0);
             setEveningTotalSales(currentEveningTotal);
 
-            // Calculate total payouts and winning bet amounts for morning and evening
             let tempMorningPayout = 0;
             let tempEveningPayout = 0;
             let tempMorningWinningBetAmount = 0;
@@ -424,7 +423,7 @@
             setMorningTotalWinningBetAmountHome(tempMorningWinningBetAmount);
             setEveningTotalWinningBetAmountHome(tempEveningWinningBetAmount);
 
-          }, [entries, morningResult, eveningResult]); // Dependencies now reflect Firestore-synced data
+          }, [entries, morningResult, eveningResult]);
 
           // --- Helper Function to Calculate Total Amount for Parsed Entries ---
           const calculateTotalAmount = React.useCallback((parsedEntries) => {
@@ -433,22 +432,18 @@
           }, []);
 
           // --- Calculate Daily Summaries Per Customer (for Entries page) ---
-          // This memoized function calculates summaries based on the currently selected entry type (morning/evening)
           const calculateCustomerDailySummaries = React.useCallback((entries, morningResult, eveningResult, selectedEntryType) => {
             const grouped = {};
             const payoutRatePer100 = 8000;
-            const commissionRate = 0.15; // Example commission rate
+            const commissionRate = 0.15;
 
-            // Determine the winning result for the currently selected type
             const currentWinningResult = selectedEntryType === 'morning' ? morningResult : eveningResult;
 
             entries.forEach(entry => {
-              // Only process entries for the currently selected type (morning/evening)
               if (entry.type !== selectedEntryType) {
                 return;
               }
 
-              // Initialize customer data if not present
               if (!grouped[entry.customerName]) {
                 grouped[entry.customerName] = {
                   totalSales: 0, totalPayout: 0, totalCommission: 0, netProfitLoss: 0, entries: [], winningNumber: null, winningBetAmount: 0
@@ -456,7 +451,6 @@
               }
               grouped[entry.customerName].totalSales += calculateTotalAmount(entry.parsedEntries);
 
-              // Calculate payouts if a winning result is available
               if (currentWinningResult && currentWinningResult.length === 2) {
                 entry.parsedEntries.forEach(parsedEntry => {
                   if (parsedEntry.number === currentWinningResult) {
@@ -466,56 +460,50 @@
                   }
                 });
               }
-              grouped[entry.customerName].entries.push(entry); // Add original entry to the group
+              grouped[entry.customerName].entries.push(entry);
             });
 
-            // Calculate commission and net profit/loss for each customer
             Object.keys(grouped).forEach(customerName => {
               const customerData = grouped[customerName];
               customerData.totalCommission = customerData.totalSales * commissionRate;
               customerData.netProfitLoss = customerData.totalSales - customerData.totalCommission - customerData.totalPayout;
             });
             return grouped;
-          }, [calculateTotalAmount, morningResult, eveningResult]); // Re-calculate if current date or results change
+          }, [calculateTotalAmount, morningResult, eveningResult]);
 
-          // This computed value will update when 'entries' or 'selectedEntryType' changes
           const customerDailySummaries = calculateCustomerDailySummaries(entries, morningResult, eveningResult, selectedEntryType);
 
           // --- Calculate Overall Numbers Summary (for Entries page modal) ---
           const getOverallNumbersSummary = React.useCallback(() => {
             const summary = {};
-            // Filter entries by the currently selected type
             const filteredEntries = entries.filter(entry => entry.type === selectedEntryType);
             filteredEntries.forEach(entry => {
               if (Array.isArray(entry.parsedEntries)) {
                 entry.parsedEntries.forEach(parsedEntry => {
                   const num = parsedEntry.number;
                   const amount = parsedEntry.amount;
-                  summary[num] = (summary[num] || 0) + amount; // Aggregate amounts for each number
+                  summary[num] = (summary[num] || 0) + amount;
                 });
               }
             });
 
             const summaryArray = [];
             for (let i = 0; i <= 99; i++) {
-                const formattedNumber = String(i).padStart(2, '0'); // 00, 01, ..., 99
+                const formattedNumber = String(i).padStart(2, '0');
                 if (summary[formattedNumber] !== undefined && summary[formattedNumber] > 0) {
-                    // Only include numbers that have entries (amount > 0)
                     summaryArray.push(`${formattedNumber} = ${summary[formattedNumber]}`);
                 }
             }
 
             const totalOverallAmount = Object.values(summary).reduce((sum, amount) => sum + amount, 0);
-            const uniqueNumbersCount = summaryArray.length; // Count of numbers with entries
+            const uniqueNumbersCount = summaryArray.length;
             return { summaryArray, totalOverallAmount, uniqueNumbersCount };
           }, [entries, selectedEntryType]);
 
-          // This computed value will update when 'entries' or 'selectedEntryType' changes
           const { summaryArray, totalOverallAmount, uniqueNumbersCount } = getOverallNumbersSummary();
 
           // --- Calculate Daily Profit/Loss Summary (for Home page modal) ---
           const calculateDailySummary = React.useCallback(() => {
-            // `entries` state already contains data for `currentDate`
             const allDailyEntries = entries;
             const totalSales = allDailyEntries.reduce((sum, entry) => sum + calculateTotalAmount(entry.parsedEntries), 0);
             const commissionRate = 0.15;
@@ -523,7 +511,6 @@
             let totalWinningBetAmount = 0;
             const payoutRatePer100 = 8000;
 
-            // Calculate payouts for morning entries based on morningResult
             if (morningResult && morningResult.length === 2) {
               allDailyEntries.filter(entry => entry.type === 'morning').forEach(entry => {
                 if (Array.isArray(entry.parsedEntries)) {
@@ -536,7 +523,6 @@
                 }
               });
             }
-            // Calculate payouts for evening entries based on eveningResult
             if (eveningResult && eveningResult.length === 2) {
               allDailyEntries.filter(entry => entry.type === 'evening').forEach(entry => {
                 if (Array.isArray(entry.parsedEntries)) {
@@ -552,42 +538,38 @@
             const commission = totalSales * commissionRate;
             const profitLoss = totalSales - commission - totalPayout;
             return { totalSales, commission, totalPayout, totalWinningBetAmount, profitLoss };
-          }, [entries, morningResult, eveningResult, calculateTotalAmount]); // Dependencies ensure re-calculation on data change
+          }, [entries, morningResult, eveningResult, calculateTotalAmount]);
 
-          // This computed value will update when 'entries', 'morningResult', or 'eveningResult' change
           const dailySummary = calculateDailySummary();
 
           // --- Function to Parse User Input into Structured Bet Entries ---
           const parseEntryInput = (input) => {
-            const parsed = []; // Array to store successfully parsed entries
-            const errors = [];  // Array to store errors encountered during parsing
-            // Split input into lines, trim whitespace, and filter out empty lines
+            const parsed = [];
+            const errors = [];
             const lines = input.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
             const parseLine = (line) => {
-              const cleanLine = line.replace(/\s/g, ''); // Remove all whitespace for easier regex matching
+              const cleanLine = line.replace(/\s/g, '');
               let matchFound = false;
 
-              // Define regex patterns for different entry types
               const patterns = {
-                doubles: /^အပူး(\d+)$/, // e.g., "အပူး100" -> "00,11,..,99" @ 100
-                consecutivePairs: /^ညီကို(\d+)$/, // e.g., "ညီကို100" -> "01,10,12,21,..." @ 100
-                fullPower: /^ပါဝါ(\d+)$/, // e.g., "ပါဝါ100" -> "05,50,16,61,..." @ 100
-                fullNakkat: /^နက္ခတ်(\d+)$/, // e.g., "နက္ခတ်100" -> "18,81,24,42,..." @ 100
-                mixed: /^(\d{1,2})=(\d+)([Rr])(\d+)$/, // e.g., "12=100R50" -> 12@100, 21@50
-                equal: /^(\d{1,2})=(\d+)$/, // e.g., "12=100" -> 12@100
-                reverse: /^(\d{1,2})[Rr](\d+)$/, // e.g., "12R100" -> 12@100, 21@100
-                dotFormat: /^(\d{1,2}(?:\.\d{1,2})+)([Rr=])(\d+)$/, // e.g., "12.34.56=100" or "12.34.56R100"
-                slash: /^(\d{1,2})\/(\d{1,2})([Rr=])(\d+)$/, // e.g., "12/34=100" or "12/34R100"
-                kway: /^(\d+)\s*ခွေ\s*(\d+)$/, // e.g., "123ခွေ100"
-                topBottom: /^(\d)\s*(ထိပ်|ပိတ်)(\d+)$/, // e.g., "1ထိပ်100" (01,11,21..91) or "1ပိတ်100" (10,11,12..19)
-                par: /^(\d)\s*(ပါ|ပါတ်)(\d+)$/, // e.g., "1ပါ100" (numbers containing 1)
-                brake: /^(\d+)\s*ဘရိတ်\s*(\d+)$/, // e.g., "1ဘရိတ်100" (numbers summing to X1)
+                doubles: /^အပူး(\d+)$/,
+                consecutivePairs: /^ညီကို(\d+)$/,
+                fullPower: /^ပါဝါ(\d+)$/,
+                fullNakkat: /^နက္ခတ်(\d+)$/,
+                mixed: /^(\d{1,2})=(\d+)([Rr])(\d+)$/,
+                equal: /^(\d{1,2})=(\d+)$/,
+                reverse: /^(\d{1,2})[Rr](\d+)$/,
+                dotFormat: /^(\d{1,2}(?:\.\d{1,2})+)([Rr=])(\d+)$/,
+                slash: /^(\d{1,2})\/(\d{1,2})([Rr=])(\d+)$/,
+                kway: /^(\d+)\s*ခွေ\s*(\d+)$/,
+                topBottom: /^(\d)\s*(ထိပ်|ပိတ်)(\d+)$/,
+                par: /^(\d)\s*(ပါ|ပါတ်)(\d+)$/,
+                brake: /^(\d+)\s*ဘရိတ်\s*(\d+)$/,
               };
 
               let match;
 
-              // --- Handle predefined patterns (အပူး, ညီကို, ပါဝါ, နက္ခတ်) ---
               if ((match = cleanLine.match(patterns.doubles))) {
                 matchFound = true;
                 const amount = parseInt(match[1]);
@@ -620,7 +602,6 @@
                   nakkatNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
                 } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
               }
-              // --- Handle specific number-amount patterns ---
               else if ((match = cleanLine.match(patterns.mixed))) {
                 matchFound = true;
                 const num = match[1];
@@ -647,11 +628,10 @@
                   parsed.push({ number: reversedNum, amount: amount });
                 } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
               }
-              // --- Handle dot-separated and slash-separated numbers ---
               else if ((match = cleanLine.match(patterns.dotFormat))) {
                 matchFound = true;
                 const numsStr = match[1];
-                const operator = match[2]; // '=' or 'R'
+                const operator = match[2];
                 const amount = parseInt(match[3]);
                 const numList = numsStr.split('.');
                 if (!isNaN(amount) && numList.every(n => n.length === 2 && !isNaN(parseInt(n)))) {
@@ -667,7 +647,7 @@
                 matchFound = true;
                 const num1 = match[1];
                 const num2 = match[2];
-                const type = match[3]; // 'R' or '='
+                const type = match[3];
                 const amount = parseInt(match[4]);
 
                 if (num1.length === 2 && num2.length === 2 && !isNaN(amount)) {
@@ -679,7 +659,6 @@
                   }
                 } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
               }
-              // --- Handle "ခွေ" (kway) numbers ---
               else if ((match = cleanLine.match(patterns.kway))) {
                 matchFound = true;
                 const digitsString = match[1];
@@ -691,17 +670,16 @@
                   } else { errors.push({ originalLine: line, message: `'${digitsString}' မှ ဂဏန်းတွဲများ ထုတ်၍ မရပါ။ ဂဏန်းအရေအတွက် အနည်းဆုံး ၂ လုံး လိုအပ်ပါသည်။` }); }
                 } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
               }
-              // --- Handle "ထိပ်" (top), "ပိတ်" (bottom), "ပါ" (contains) ---
               else if ((match = cleanLine.match(patterns.topBottom))) {
                 matchFound = true;
                 const digit = match[1];
-                const type = match[2]; // 'ထိပ်' or 'ပိတ်'
+                const type = match[2];
                 const amount = parseInt(match[3]);
                 if (digit.length === 1 && !isNaN(amount)) {
                   for (let i = 0; i < 10; i++) {
                     let num;
-                    if (type === 'ထိပ်') { num = `${digit}${i}`; } // e.g., 1ထိပ် -> 10,11,...,19
-                    else { num = `${i}${digit}`; } // e.g., 1ပိတ် -> 01,11,...,91
+                    if (type === 'ထိပ်') { num = `${digit}${i}`; }
+                    else { num = `${i}${digit}`; }
                     parsed.push({ number: num, amount: amount });
                   }
                 } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
@@ -710,14 +688,12 @@
                 const digit = match[1];
                 const amount = parseInt(match[3]);
                 if (digit.length === 1 && !isNaN(amount)) {
-                  // Generate all 2-digit numbers (00-99)
                   const allNumbers = Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0'));
                   allNumbers.forEach(num => {
                     if (num.includes(digit)) { parsed.push({ number: num, amount: amount }); }
                   });
                 } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
               }
-              // --- Handle "ဘရိတ်" (brake) numbers ---
               else if ((match = cleanLine.match(patterns.brake))) {
                 matchFound = true;
                 const brakeDigit = parseInt(match[1]);
@@ -730,34 +706,27 @@
                 } else { errors.push({ originalLine: line, message: "ဘရိတ်ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
               }
 
-              // If no pattern matched the line, record an error
               if (!matchFound) {
                 errors.push({ originalLine: line, message: "မမှန်ကန်သော ထိုးကြေးပုံစံ။" });
               }
             };
 
-            lines.forEach(line => parseLine(line)); // Process each line of the input
+            lines.forEach(line => parseLine(line));
 
             return { parsed, errors };
           };
 
           // --- Add a new entry to Firestore ---
           const addEntry = async () => {
-            console.log("Add Entry button clicked.");
-            console.log("Value of customerNameInput at addEntry:", customerNameInput);
-            console.log("Value of inputEntry at addEntry:", inputEntry);
-
-            if (!db || !dataIdentifier) { // Check dataIdentifier
-              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
-              console.error("Validation Error: DB or dataIdentifier not available.");
+            if (!db || !user) {
+              setErrorMessage("အကောင့်ဝင်ရန် လိုအပ်ပါသည်။");
+              console.error("Validation Error: DB or user not available.");
               return;
             }
-            // Clear previous error messages/details
             setErrorMessage('');
             setErrorDetails([]);
             setShowErrorModal(false);
 
-            // Basic input validation
             if (!customerNameInput.trim()) {
               setErrorMessage("ထိုးသူအမည်ထည့်ရန် လိုအပ်ပါသည်။");
               console.error("Validation Error: Customer name is empty.");
@@ -769,10 +738,8 @@
               return;
             }
 
-            // Parse the input entry text
             const { parsed, errors } = parseEntryInput(inputEntry);
 
-            // Show error modal if parsing errors are found
             if (errors.length > 0) {
               setErrorDetails(errors);
               setShowErrorModal(true);
@@ -780,36 +747,33 @@
               return;
             }
 
-            // If parsing was successful but no valid entries were found
             if (parsed.length === 0) {
               setErrorMessage("ထည့်သွင်းထားသော စာကြောင်းများထဲမှ မှန်ကန်သော ထိုးကြေးပုံစံကို ရှာမတွေ့ပါ။");
               console.error("No valid entries parsed.");
               return;
             }
 
-            // Create the new entry object
             const newEntry = {
               date: currentDate,
               type: selectedEntryType,
               customerName: customerNameInput.trim(),
               originalInput: inputEntry.trim(),
-              parsedEntries: parsed, // The structured parsed data
+              parsedEntries: parsed,
               createdAt: new Date(),
+              userId: user.uid // Associate entry with the logged-in user
             };
 
             try {
               const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
-              // Add the new entry to Firestore using dataIdentifier
-              await window.firebase.addDoc(window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`), newEntry);
-              // Clear input fields after successful addition
+              await window.firebase.addDoc(window.firebase.collection(db, `artifacts/${appId}/users/${user.uid}/entries`), newEntry);
               setInputEntry('');
               setCustomerNameInput('');
               if (inputRef.current) {
-                inputRef.current.value = ''; // Clear textarea value directly
+                inputRef.current.value = '';
               }
               setErrorMessage("စာရင်းကို အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။");
-              setTimeout(() => setErrorMessage(''), 3000); // Clear success message after 3 seconds
-              console.log("Add Entry: Document added successfully to Firestore under ID:", dataIdentifier);
+              setTimeout(() => setErrorMessage(''), 3000);
+              console.log("Add Entry: Document added successfully to Firestore for user:", user.uid);
             } catch (e) {
               console.error("Error adding document: ", e);
               setErrorMessage("စာရင်းထည့်သွင်းရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
@@ -818,25 +782,25 @@
 
           // --- Update morning/evening results in Firestore ---
           const updateResult = async (type, value) => {
-            if (!db || !dataIdentifier) { // Check dataIdentifier
-              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
+            if (!db || !user) { // Only admin should update results, but for now, any logged-in user can.
+                                // This needs to be restricted by Firestore Security Rules.
+              setErrorMessage("အကောင့်ဝင်ရန် လိုအပ်ပါသည်။");
               return;
             }
             const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
-            const dailyResultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, currentDate);
+            // Assuming daily results are public/shared, not user-specific
+            const dailyResultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/public/dailyResults`, currentDate); // Corrected path to public results
             try {
-              // Use setDoc with merge: true to update or create the document
               await window.firebase.setDoc(dailyResultDocRef, {
                 [type === 'morning' ? 'morningResult' : 'eveningResult']: value,
-                updatedAt: new Date() // Record the update timestamp
+                updatedAt: new Date()
               }, { merge: true });
-              // Update local state to reflect the change
               if (type === 'morning') {
                 setMorningResult(value);
               } else {
                 setEveningResult(value);
               }
-              console.log(`Update Result: ${type} result updated to ${value} in Firestore under ID: ${dataIdentifier}.`);
+              console.log(`Update Result: ${type} result updated to ${value}.`);
             } catch (e) {
               console.error(`Error updating ${type} result: `, e);
               setErrorMessage(`Error updating ${type} result.`);
@@ -846,16 +810,14 @@
           // --- Handle date navigation (previous/next day) ---
           const handleDateChange = (days) => {
             const newDate = new Date(currentDate);
-            newDate.setDate(newDate.getDate() + days); // Add/subtract days
-            setCurrentDate(formatDate(newDate)); // Update current date state
-            // Data will automatically re-fetch from Firestore due to `currentDate` dependency in useEffect
+            newDate.setDate(newDate.getDate() + days);
+            setCurrentDate(formatDate(newDate));
           };
 
           // --- Handle manual date selection from date picker ---
           const handleManualDateChange = (e) => {
-            setCurrentDate(e.target.value); // Update current date state
-            setShowDatePicker(false); // Close the date picker
-            // Data will automatically re-fetch from Firestore
+            setCurrentDate(e.target.value);
+            setShowDatePicker(false);
           };
 
           // --- Show custom delete confirmation modal for an entry ---
@@ -866,18 +828,18 @@
 
           // --- Execute deletion of an entry from Firestore ---
           const executeDeleteEntry = async () => {
-            if (!db || !dataIdentifier || !entryToDeleteId) { // Check dataIdentifier
-              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။ သို့မဟုတ် Database မရပါ။");
+            if (!db || !user || !entryToDeleteId) {
+              setErrorMessage("အကောင့်ဝင်ရန် လိုအပ်ပါသည်။ သို့မဟုတ် Database မရပါ။");
               return;
             }
             try {
               const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
-              await window.firebase.deleteDoc(window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`, entryToDeleteId));
+              await window.firebase.deleteDoc(window.firebase.doc(db, `artifacts/${appId}/users/${user.uid}/entries`, entryToDeleteId));
               setErrorMessage("စာရင်းကို ဖျက်ပြီးပါပြီ။");
-              console.log("Delete Entry: Document deleted from Firestore under ID:", dataIdentifier);
-              setShowConfirmDeleteModal(false); // Close modal
-              setEntryToDeleteId(null); // Clear ID
-              setTimeout(() => setErrorMessage(''), 3000); // Clear success message
+              console.log("Delete Entry: Document deleted from Firestore for user:", user.uid);
+              setShowConfirmDeleteModal(false);
+              setEntryToDeleteId(null);
+              setTimeout(() => setErrorMessage(''), 3000);
             } catch (e) {
               console.error("Error deleting document: ", e);
               setErrorMessage("စာရင်းဖျက်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
@@ -887,28 +849,27 @@
           // --- Populate input fields for editing an existing entry ---
           const handleEditEntry = (entry) => {
             console.log("Editing entry:", entry);
-            setCustomerNameInput(entry.customerName); // Set customer name input
-            setInputEntry(entry.originalInput); // Set original input text to textarea
+            setCustomerNameInput(entry.customerName);
+            setInputEntry(entry.originalInput);
             setErrorMessage("စာရင်းကို ပြင်ဆင်ရန် အောက်ပါ ထိုးကြေး Input တွင် ပြင်ဆင်ပြီး '+' ခလုပ်ကိုနှိပ်၍ ပြန်လည် ထည့်သွင်းပါ။");
-            setShowCustomerEntries(false); // Close the customer entries detail modal
+            setShowCustomerEntries(false);
             if (inputRef.current) {
-                inputRef.current.focus(); // Focus on the textarea for editing
+                inputRef.current.focus();
             }
           };
 
           // --- Monthly Summary Calculations and Data Fetching ---
-          const calculateMonthlySummaryData = React.useCallback((fetchedEntries, fetchedResults) => {
+          const calculateMonthlySummaryData = React.useCallback(async (fetchedEntries, fetchedResults) => {
             let totalSales = 0;
             let totalPayout = 0;
             let totalWinningBetAmount = 0;
             const payoutRatePer100 = 8000;
             const commissionRate = 0.15;
 
-            // Aggregate sales from all entries
             fetchedEntries.forEach(entry => {
               totalSales += calculateTotalAmount(entry.parsedEntries);
 
-              const dailyResult = fetchedResults[entry.date]; // Get result for the specific date of the entry
+              const dailyResult = fetchedResults[entry.date];
               if (dailyResult) {
                 const winningResult = entry.type === 'morning' ? dailyResult.morningResult : dailyResult.eveningResult;
 
@@ -929,25 +890,23 @@
             return { totalSales, commission, totalPayout, totalWinningBetAmount, profitLoss };
           }, [calculateTotalAmount]);
 
-          // Effect to fetch and calculate monthly summary data when modal is open or month changes
           React.useEffect(() => {
-            if (!db || !dataIdentifier || !showMonthlySummaryModal) { // Check dataIdentifier
-              setMonthlySummary(null); // Clear summary when modal is closed or not ready
+            if (!db || !user || !showMonthlySummaryModal) {
+              setMonthlySummary(null);
               return;
             }
 
             setIsMonthlySummaryLoading(true);
             const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const userId = user.uid;
 
-            // Determine start and end dates of the current month
             const [year, month] = currentMonth.split('-').map(Number);
-            const startOfMonth = new Date(year, month - 1, 1); // Month is 0-indexed in Date constructor
-            const endOfMonth = new Date(year, month, 0); // Last day of the month
+            const startOfMonth = new Date(year, month - 1, 1);
+            const endOfMonth = new Date(year, month, 0);
 
             const fetchMonthlyData = async () => {
               try {
-                const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
-                // Query entries within the selected month
+                const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/entries`);
                 const qEntriesMonth = window.firebase.query(
                   entriesCollectionRef,
                   window.firebase.where('date', '>=', formatDate(startOfMonth)),
@@ -956,19 +915,19 @@
                 const entriesSnapshot = await window.firebase.getDocs(qEntriesMonth);
                 const fetchedMonthlyEntries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Collect all unique dates present in the fetched entries to query results efficiently
                 const uniqueDatesInMonthWithEntries = [...new Set(fetchedMonthlyEntries.map(entry => entry.date))];
                 const fetchedResults = {};
+                // Fetch public results
+                const publicDailyResultsRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/public/dailyResults`);
                 for (const dateString of uniqueDatesInMonthWithEntries) {
-                  const resultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, dateString);
+                  const resultDocRef = window.firebase.doc(publicDailyResultsRef, dateString);
                   const resultSnap = await window.firebase.getDoc(resultDocRef);
                   if (resultSnap.exists()) {
-                    fetchedResults[dateString] = resultSnap.data(); // Store results by date string
+                    fetchedResults[dateString] = resultSnap.data();
                   }
                 }
 
-                // Calculate the summary using the fetched entries and results
-                const monthlySummaryCalculated = calculateMonthlySummaryData(
+                const monthlySummaryCalculated = await calculateMonthlySummaryData(
                   fetchedMonthlyEntries,
                   fetchedResults
                 );
@@ -977,38 +936,35 @@
                 console.error("Error fetching monthly data:", error);
                 setErrorMessage("Error loading monthly summary.");
               } finally {
-                setIsMonthlySummaryLoading(false); // End loading regardless of success/failure
+                setIsMonthlySummaryLoading(false);
               }
             };
 
             fetchMonthlyData();
-          }, [db, dataIdentifier, currentMonth, showMonthlySummaryModal, calculateMonthlySummaryData]); // Re-run when these dependencies change
+          }, [db, user, currentMonth, showMonthlySummaryModal, calculateMonthlySummaryData]);
 
-          // Handle month navigation (previous/next month)
           const handleMonthChange = (months) => {
             const [year, month] = currentMonth.split('-').map(Number);
-            const newDate = new Date(year, month - 1 + months, 1); // Adjust month, then set day to 1
-            setCurrentMonth(formatMonthYear(newDate)); // Update current month state
+            const newDate = new Date(year, month - 1 + months, 1);
+            setCurrentMonth(formatMonthYear(newDate));
           };
 
-          // Handle manual month selection from month input
           const handleManualMonthChange = (e) => {
-            setCurrentMonth(e.target.value); // Update current month state
+            setCurrentMonth(e.target.value);
           };
 
           // --- Per-Customer Monthly Summary Calculations and Data Fetching ---
-          const calculatePerCustomerMonthlySummaryData = React.useCallback((fetchedEntries, fetchedResults) => {
+          const calculatePerCustomerMonthlySummaryData = React.useCallback(async (fetchedEntries, fetchedResults) => {
             const groupedCustomers = {};
             const payoutRatePer100 = 8000;
 
-            // Group entries by customer and aggregate sales/payouts
             fetchedEntries.forEach(entry => {
               if (!groupedCustomers[entry.customerName]) {
                 groupedCustomers[entry.customerName] = {
                   totalSales: 0,
                   totalPayout: 0,
                   profitLoss: 0,
-                  totalWinningBetAmount: 0, // To store the total bet amount for winning numbers
+                  totalWinningBetAmount: 0,
                 };
               }
 
@@ -1022,35 +978,33 @@
                   entry.parsedEntries.forEach(parsedEntry => {
                     if (parsedEntry.number === winningResult) {
                       groupedCustomers[entry.customerName].totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
-                      groupedCustomers[entry.customerName].totalWinningBetAmount += parsedEntry.amount; // Sum winning bet amount
+                      groupedCustomers[entry.customerName].totalWinningBetAmount += parsedEntry.amount;
                     }
                   });
                 }
               }
             });
 
-            // Calculate profit/loss for each customer (Sales - Payout, no commission for this summary)
             Object.keys(groupedCustomers).forEach(customerName => {
               const customerData = groupedCustomers[customerName];
               customerData.profitLoss = customerData.totalSales - customerData.totalPayout;
             });
 
-            // Convert to array for easier rendering and sorting (e.g., by total sales descending)
             return Object.entries(groupedCustomers).map(([customerName, data]) => ({
               customerName,
               ...data
             })).sort((a, b) => b.totalSales - a.totalSales);
           }, [calculateTotalAmount]);
 
-          // Effect to fetch and calculate per-customer monthly summary data
           React.useEffect(() => {
-            if (!db || !dataIdentifier || !showPerCustomerMonthlySummaryModal) { // Check dataIdentifier
-              setPerCustomerMonthlySummary(null); // Clear summary when modal is closed or not ready
+            if (!db || !user || !showPerCustomerMonthlySummaryModal) {
+              setPerCustomerMonthlySummary(null);
               return;
             }
 
             setIsPerCustomerMonthlySummaryLoading(true);
             const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const userId = user.uid;
 
             const [year, month] = currentMonth.split('-').map(Number);
             const startOfMonth = new Date(year, month - 1, 1);
@@ -1058,8 +1012,7 @@
 
             const fetchPerCustomerMonthlyData = async () => {
               try {
-                const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
-                // Query all entries for the selected month
+                const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/entries`);
                 const qEntriesMonth = window.firebase.query(
                   entriesCollectionRef,
                   window.firebase.where('date', '>=', formatDate(startOfMonth)),
@@ -1068,19 +1021,18 @@
                 const entriesSnapshot = await window.firebase.getDocs(qEntriesMonth);
                 const fetchedMonthlyEntries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Fetch results for all unique dates present in the fetched entries
                 const uniqueDatesInMonthWithEntries = [...new Set(fetchedMonthlyEntries.map(entry => entry.date))];
                 const fetchedResults = {};
+                const publicDailyResultsRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/public/dailyResults`);
                 for (const dateString of uniqueDatesInMonthWithEntries) {
-                  const resultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, dateString);
+                  const resultDocRef = window.firebase.doc(publicDailyResultsRef, dateString);
                   const resultSnap = await window.firebase.getDoc(resultDocRef);
                   if (resultSnap.exists()) {
                     fetchedResults[dateString] = resultSnap.data();
                   }
                 }
 
-                // Calculate the per-customer summary
-                const perCustomerMonthlySummaryCalculated = calculatePerCustomerMonthlySummaryData(
+                const perCustomerMonthlySummaryCalculated = await calculatePerCustomerMonthlySummaryData(
                   fetchedMonthlyEntries,
                   fetchedResults
                 );
@@ -1089,19 +1041,123 @@
                 console.error("Error fetching per-customer monthly data:", error);
                 setErrorMessage("Error loading per-customer monthly summary.");
               } finally {
-                setIsPerCustomerMonthlySummaryLoading(false); // End loading
+                setIsPerCustomerMonthlySummaryLoading(false);
               }
             };
 
             fetchPerCustomerMonthlyData();
-          }, [db, dataIdentifier, currentMonth, showPerCustomerMonthlySummaryModal, calculatePerCustomerMonthlySummaryData]);
+          }, [db, user, currentMonth, showPerCustomerMonthlySummaryModal, calculatePerCustomerMonthlySummaryData]);
+
+          // --- Weekly Summary Calculations and Data Fetching ---
+          const calculateWeeklySummaryData = React.useCallback(async (startDate, endDate) => {
+              let totalSales = 0;
+              let totalPayout = 0;
+              let totalWinningBetAmount = 0;
+              const payoutRatePer100 = 8000;
+              const commissionRate = 0.15;
+              const customerBreakdown = {};
+
+              const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+              const userId = user.uid;
+
+              const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/entries`);
+              const qEntriesWeek = window.firebase.query(
+                entriesCollectionRef,
+                window.firebase.where('date', '>=', startDate),
+                window.firebase.where('date', '<=', endDate)
+              );
+              const entriesSnapshot = await window.firebase.getDocs(qEntriesWeek);
+              const fetchedWeeklyEntries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+              const uniqueDatesInWeekWithEntries = [...new Set(fetchedWeeklyEntries.map(entry => entry.date))];
+              const fetchedResults = {};
+              const publicDailyResultsRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/public/dailyResults`);
+              for (const dateString of uniqueDatesInWeekWithEntries) {
+                const resultDocRef = window.firebase.doc(publicDailyResultsRef, dateString);
+                const resultSnap = await window.firebase.getDoc(resultDocRef);
+                if (resultSnap.exists()) {
+                  fetchedResults[dateString] = resultSnap.data();
+                }
+              }
+
+              fetchedWeeklyEntries.forEach(entry => {
+                const entrySales = calculateTotalAmount(entry.parsedEntries);
+                totalSales += entrySales;
+
+                if (!customerBreakdown[entry.customerName]) {
+                  customerBreakdown[entry.customerName] = {
+                    totalSales: 0,
+                    totalPayout: 0,
+                    totalWinningBetAmount: 0,
+                    profitLoss: 0
+                  };
+                }
+                customerBreakdown[entry.customerName].totalSales += entrySales;
+
+                const dailyResult = fetchedResults[entry.date];
+                if (dailyResult) {
+                  const winningResult = entry.type === 'morning' ? dailyResult.morningResult : dailyResult.eveningResult;
+
+                  if (winningResult && winningResult.length === 2) {
+                    entry.parsedEntries.forEach(parsedEntry => {
+                      if (parsedEntry.number === winningResult) {
+                        const payout = (parsedEntry.amount / 100) * payoutRatePer100;
+                        totalPayout += payout;
+                        totalWinningBetAmount += parsedEntry.amount;
+
+                        customerBreakdown[entry.customerName].totalPayout += payout;
+                        customerBreakdown[entry.customerName].totalWinningBetAmount += parsedEntry.amount;
+                      }
+                    });
+                  }
+                }
+              });
+
+              const commission = totalSales * commissionRate;
+              const profitLoss = totalSales - commission - totalPayout;
+
+              const sortedCustomerBreakdown = Object.entries(customerBreakdown).map(([customerName, data]) => ({
+                customerName,
+                ...data
+              })).sort((a, b) => b.totalSales - a.totalSales);
+
+              return { totalSales, commission, totalPayout, totalWinningBetAmount, profitLoss, customerBreakdown: sortedCustomerBreakdown };
+          }, [db, user, calculateTotalAmount]);
+
+          React.useEffect(() => {
+              if (!db || !user || !showWeeklySummaryModal) {
+                  setWeeklySummaryData(null);
+                  return;
+              }
+
+              setIsWeeklySummaryLoading(true);
+              const startDate = getStartOfWeek(currentWeekStartDate);
+              const endDate = getEndOfWeek(currentWeekStartDate);
+
+              calculateWeeklySummaryData(startDate, endDate)
+                  .then(summary => {
+                      setWeeklySummaryData(summary);
+                  })
+                  .catch(error => {
+                      console.error("Error fetching weekly data:", error);
+                      setErrorMessage("Error loading weekly summary.");
+                  })
+                  .finally(() => {
+                      setIsWeeklySummaryLoading(false);
+                  });
+          }, [db, user, currentWeekStartDate, showWeeklySummaryModal, calculateWeeklySummaryData]);
+
+          const handleWeekChange = (weeks) => {
+              const newDate = new Date(currentWeekStartDate);
+              newDate.setDate(newDate.getDate() + (weeks * 7));
+              setCurrentWeekStartDate(formatDate(newDate));
+          };
+
 
           // --- Customer Management Functions ---
-
-          // Add a new customer or update an existing one
           const handleAddOrUpdateCustomer = async () => {
-            if (!db || !dataIdentifier) { // Check dataIdentifier
-              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
+            if (!db || !user) {
+              setErrorMessage("အကောင့်ဝင်ရန် လိုအပ်ပါသည်။");
               return;
             }
             if (!newCustomerName.trim()) {
@@ -1110,77 +1166,59 @@
             }
 
             const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
-            const customersCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`); // Use dataIdentifier
+            const userId = user.uid;
+            const customersCollectionRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/customers`);
 
             try {
               if (editingCustomerId) {
-                // If editingCustomerId exists, update the existing customer
                 await window.firebase.updateDoc(window.firebase.doc(customersCollectionRef, editingCustomerId), { name: newCustomerName.trim() });
                 setErrorMessage("ထိုးသူအမည် ပြင်ဆင်ပြီးပါပြီ။");
               } else {
-                // Otherwise, add a new customer
-                // Check for duplicate name before adding to prevent duplicates
                 const q = window.firebase.query(customersCollectionRef, window.firebase.where("name", "==", newCustomerName.trim()));
                 const querySnapshot = await window.firebase.getDocs(q);
                 if (!querySnapshot.empty) {
                   setErrorMessage("ဤထိုးသူအမည် ရှိပြီးသား ဖြစ်ပါသည်။");
-                  return; // Stop if duplicate found
+                  return;
                 }
                 await window.firebase.addDoc(customersCollectionRef, { name: newCustomerName.trim(), createdAt: new Date() });
                 setErrorMessage("ထိုးသူအမည် အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။");
               }
-              setNewCustomerName(''); // Clear input
-              setEditingCustomerId(null); // Reset editing state
-              setTimeout(() => setErrorMessage(''), 3000); // Clear message
+              setNewCustomerName('');
+              setEditingCustomerId(null);
+              setTimeout(() => setErrorMessage(''), 3000);
             } catch (e) {
               console.error("Error managing customer:", e);
               setErrorMessage("ထိုးသူအမည် စီမံရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
             }
           };
 
-          // Set state to start editing a customer
           const startEditCustomer = (customer) => {
             setNewCustomerName(customer.name);
             setEditingCustomerId(customer.id);
           };
 
-          // Show confirmation modal for customer deletion
           const confirmDeleteCustomer = (id) => {
             setCustomerToDeleteId(id);
             setConfirmDeleteCustomerModal(true);
           };
 
-          // Execute customer deletion from Firestore
           const executeDeleteCustomer = async () => {
-            if (!db || !dataIdentifier || !customerToDeleteId) { // Check dataIdentifier
-              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။ သို့မဟုတ် Database မရပါ။");
+            if (!db || !user || !customerToDeleteId) {
+              setErrorMessage("အကောင့်ဝင်ရန် လိုအပ်ပါသည်။ သို့မဟုတ် Database မရပါ။");
               return;
             }
             const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const userId = user.uid;
             try {
-              await window.firebase.deleteDoc(window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`, customerToDeleteId)); // Use dataIdentifier
+              await window.firebase.deleteDoc(window.firebase.doc(db, `artifacts/${appId}/users/${userId}/customers`, customerToDeleteId));
               setErrorMessage("ထိုးသူအမည် ဖျက်ပြီးပါပြီ။");
-              setConfirmDeleteCustomerModal(false); // Close modal
-              setCustomerToDeleteId(null); // Clear ID
-              setTimeout(() => setErrorMessage(''), 3000); // Clear message
+              setConfirmDeleteCustomerModal(false);
+              setCustomerToDeleteId(null);
+              setTimeout(() => setErrorMessage(''), 3000);
             } catch (e) {
               console.error("Error deleting customer:", e);
               setErrorMessage("ထိုးသူအမည် ဖျက်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
             }
-          };
-
-          // --- Function to handle saving the user-provided data identifier ---
-          const handleSaveDataIdentifier = () => {
-              if (!dataIdentifierInput.trim()) {
-                  setIdErrorMessage("မသိမ်းဆည်းမီ User ID သို့မဟုတ် Nickname ထည့်သွင်းပါ။");
-                  return;
-              }
-              setDataIdentifier(dataIdentifierInput.trim());
-              setIdErrorMessage(""); // Clear any previous error
-              setErrorMessage("User ID ကို အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။");
-              setTimeout(() => setErrorMessage(''), 3000);
-              console.log("Data identifier updated to:", dataIdentifierInput.trim());
-              setShowDataIdentifierModal(false); // Close modal after saving
           };
 
           // --- Utility function for copying text to clipboard ---
@@ -1204,6 +1242,62 @@
             document.body.removeChild(textArea);
           };
 
+          // --- Authentication Handlers ---
+          const handleSignUp = async () => {
+            setAuthError('');
+            if (!email || !password) {
+              setAuthError('Email နှင့် Password ပြည့်စုံစွာ ထည့်သွင်းပါ။');
+              return;
+            }
+            try {
+              await window.firebase.createUserWithEmailAndPassword(auth, email, password);
+              setAuthError('အကောင့်ဖွင့်ခြင်း အောင်မြင်ပါသည်။');
+              setEmail('');
+              setPassword('');
+            } catch (error) {
+              console.error("Sign Up Error:", error);
+              setAuthError(error.message);
+            }
+          };
+
+          const handleLogin = async () => {
+            setAuthError('');
+            if (!email || !password) {
+              setAuthError('Email နှင့် Password ပြည့်စုံစွာ ထည့်သွင်းပါ။');
+              return;
+            }
+            try {
+              await window.firebase.signInWithEmailAndPassword(auth, email, password);
+              setAuthError('အကောင့်ဝင်ခြင်း အောင်မြင်ပါသည်။');
+              setEmail('');
+              setPassword('');
+            } catch (error) {
+              console.error("Login Error:", error);
+              setAuthError(error.message);
+            }
+          };
+
+          const handleLogout = async () => {
+            try {
+              await window.firebase.signOut(auth);
+              setAuthError('အကောင့်မှ ထွက်ပြီးပါပြီ။');
+              // Clear all app-specific states that depend on user data
+              setEntries([]);
+              setMorningResult('');
+              setEveningResult('');
+              setLocalMorningResultInput('');
+              setLocalEveningResultInput('');
+              setCustomers([]);
+              setMonthlySummary(null);
+              setPerCustomerMonthlySummary(null);
+              setWeeklySummaryData(null);
+              setCurrentPage('home'); // Go back to home/login page
+            } catch (error) {
+              console.error("Logout Error:", error);
+              setAuthError(error.message);
+            }
+          };
+
 
           // Render a loading spinner if Firebase is still initializing
           if (isLoading) {
@@ -1211,6 +1305,48 @@
               <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center font-inter text-gray-800">
                 <Loader2 size={48} className="animate-spin text-blue-500 mb-4" />
                 <p className="text-lg font-semibold text-gray-700">ဒေတာများ တင်နေသည်...</p>
+              </div>
+            );
+          }
+
+          // If no user is logged in, show the login/signup form
+          if (!user) {
+            return (
+              <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 font-inter">
+                <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center">
+                  <h2 className="text-2xl font-bold text-blue-700 mb-6">ထိုးကြေးမှတ်တမ်း</h2>
+                  {authError && <p className="text-red-600 text-sm mb-4">{authError}</p>}
+                  <div className="space-y-4">
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      aria-label="Email"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      aria-label="Password"
+                    />
+                    <button
+                      onClick={handleLogin}
+                      className="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transform active:scale-95 transition-transform"
+                    >
+                      အကောင့်ဝင်မည်
+                    </button>
+                    <button
+                      onClick={handleSignUp}
+                      className="w-full px-4 py-3 bg-green-600 text-white font-semibold rounded-md shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
+                    >
+                      အကောင့်ဖွင့်မည်
+                    </button>
+                  </div>
+                </div>
               </div>
             );
           }
@@ -1308,7 +1444,7 @@
                   )}
                 </div>
 
-                {/* Action Buttons for Home Page ("ရက်ချုပ်", "လချုပ်", "တစ်ဦးချင်း လချုပ်", "ထိုးသူများ စီမံရန်") */}
+                {/* Action Buttons for Home Page ("ရက်ချုပ်", "လချုပ်", "တစ်ဦးချင်း လချုပ်", "အပတ်ချုပ်", "ထိုးသူများ စီမံရန်") */}
                 {currentPage === 'home' && (
                   <div className="text-center my-3 flex justify-center space-x-2 flex-wrap">
                       {/* Daily Summary Button */}
@@ -1335,6 +1471,14 @@
                       >
                           <User size={18} className="mr-2" /> တစ်ဦးချင်း လချုပ်
                       </button>
+                      {/* Weekly Summary Button */}
+                      <button
+                          onClick={() => { setShowWeeklySummaryModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300 transform active:scale-95 transition-transform mb-2"
+                          title="အပတ်ချုပ်စာရင်း" aria-label="Weekly Summary"
+                      >
+                          <CalendarDays size={18} className="mr-2" /> အပတ်ချုပ်
+                      </button>
                       {/* Manage Customers Button */}
                       <button
                           onClick={() => { setShowManageCustomersModal(true); }}
@@ -1345,11 +1489,20 @@
                       </button>
                   </div>
                 )}
-                {/* Display User ID on Home page */}
-                {currentPage === 'home' && dataIdentifier && ( // Use dataIdentifier here
-                  <p className="text-xs text-gray-500 text-center mt-2">
-                    လက်ရှိ ID: <span className="font-bold text-gray-700">{dataIdentifier}</span>
-                  </p>
+                {/* Display User Email and Logout Button */}
+                {currentPage === 'home' && user && (
+                  <div className="text-center mt-2 flex items-center justify-center space-x-2">
+                    <p className="text-xs text-gray-500">
+                      အကောင့်: <span className="font-bold text-gray-700">{user.email}</span>
+                    </p>
+                    <button
+                      onClick={handleLogout}
+                      className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300 transform active:scale-95 transition-transform"
+                      title="အကောင့်မှ ထွက်ရန်" aria-label="Logout"
+                    >
+                      <LogOut size={18} />
+                    </button>
+                  </div>
                 )}
 
                 {/* Morning/Evening Result Displays for Home Page (clickable to navigate) */}
@@ -1490,69 +1643,7 @@
                 </div>
               )}
 
-              {/* --- FAB for User ID on Home Page --- */}
-              {currentPage === 'home' && (
-                  <button
-                      onClick={() => setShowDataIdentifierModal(true)}
-                      className="fixed bottom-4 right-4 p-4 bg-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-90 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-purple-400 z-40"
-                      title="User ID သတ်မှတ်ရန်"
-                      aria-label="Set User ID"
-                  >
-                      <User size={28} />
-                  </button>
-              )}
-
-
               {/* --- Modals Section (Conditionally Rendered) --- */}
-
-              {/* User Data Identifier Modal */}
-              {showDataIdentifierModal && (
-                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
-                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm flex flex-col">
-                    {/* Modal Header */}
-                    <div className="flex justify-between items-center p-4 border-b">
-                      <h2 className="text-lg font-bold text-blue-700">User ID သို့မဟုတ် Nickname သတ်မှတ်ရန်</h2>
-                      <button onClick={() => setShowDataIdentifierModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close User ID Modal">
-                        <X size={24} />
-                      </button>
-                    </div>
-                    {/* Modal Content */}
-                    <div className="p-4">
-                      <p className="text-sm text-gray-700 font-semibold mb-3">
-                          သင့်ဒေတာများကို သိမ်းဆည်းရန် မှတ်မိလွယ်သော ID/Nickname ထည့်ပါ။
-                      </p>
-                      {idErrorMessage && (<p className="text-red-600 text-sm mb-2 text-center">{idErrorMessage}</p>)}
-                      <div className="flex flex-col space-y-3">
-                        <input
-                          type="text"
-                          value={dataIdentifierInput}
-                          onChange={(e) => {
-                              setDataIdentifierInput(e.target.value);
-                              setIdErrorMessage(''); // Clear error on change
-                          }}
-                          placeholder="User ID သို့မဟုတ် Nickname ထည့်ပါ"
-                          className="p-2 border border-blue-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm"
-                          aria-label="User Data Identifier Input"
-                        />
-                        <button
-                          onClick={handleSaveDataIdentifier}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transform active:scale-95 transition-transform text-sm"
-                        >
-                          User ID သိမ်းမည်
-                        </button>
-                      </div>
-                      {dataIdentifier && (
-                          <p className="text-xs text-gray-500 text-center mt-3 p-2 bg-gray-50 rounded-md border border-gray-200">
-                              လက်ရှိ ID: <span className="font-bold text-gray-700">{dataIdentifier}</span>
-                              <br/>
-                              <span className="text-red-500 font-bold">သတိ: ဤ ID ကိုသိသူတိုင်း သင့်ဒေတာကို ဝင်ရောက်နိုင်ပါသည်။</span>
-                          </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
 
               {/* Customer Entries Detail Modal */}
               {showCustomerEntries && (
@@ -1885,6 +1976,159 @@
                     )}
                   </div>
                 </div>
+              )}
+
+              {/* Weekly Summary Modal */}
+              {showWeeklySummaryModal && (
+                  <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col relative">
+                          {/* Modal Header */}
+                          <div className="flex justify-between items-center p-4 border-b">
+                              <h2 className="text-lg font-bold text-purple-700">အပတ်ချုပ်စာရင်း ({getStartOfWeek(currentWeekStartDate)} မှ {getEndOfWeek(currentWeekStartDate)})</h2>
+                              <button onClick={() => setShowWeeklySummaryModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Weekly Summary">
+                                  <X size={24} />
+                              </button>
+                          </div>
+
+                          {/* Loading State */}
+                          {isWeeklySummaryLoading ? (
+                              <div className="flex-1 flex flex-col items-center justify-center p-8">
+                                  <Loader2 size={40} className="animate-spin text-purple-500 mb-4" />
+                                  <p className="text-md text-gray-600">အပတ်ချုပ်ဒေတာများ တင်နေသည်...</p>
+                              </div>
+                          ) : (
+                              <>
+                                  <div className="p-4 flex-1 overflow-y-auto">
+                                      {/* Week Navigation */}
+                                      <div className="flex justify-center items-center space-x-2 mb-4">
+                                          <button onClick={() => handleWeekChange(-1)} className="p-2 bg-purple-100 text-purple-700 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-300 transform active:scale-95 transition-transform" aria-label="Previous Week">
+                                              <ChevronLeft size={20} />
+                                          </button>
+                                          <span className="text-center text-base font-semibold text-gray-700">
+                                              {getStartOfWeek(currentWeekStartDate)}
+                                          </span>
+                                          <button onClick={() => handleWeekChange(1)} className="p-2 bg-purple-100 text-purple-700 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-300 transform active:scale-95 transition-transform" aria-label="Next Week">
+                                              <ChevronRight size={20} />
+                                          </button>
+                                      </div>
+
+                                      {weeklySummaryData ? (
+                                          <div className="space-y-4">
+                                              {/* Overall Weekly Summary */}
+                                              <div className="bg-purple-50 p-4 rounded-lg shadow-sm border border-purple-200">
+                                                  <h3 className="text-md font-bold text-purple-800 mb-2">အလုံးစုံ အပတ်ချုပ်</h3>
+                                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                                      <span className="font-medium text-gray-600">ရောင်းရငွေ:</span>
+                                                      <span className="text-right text-gray-800">{weeklySummaryData.totalSales.toLocaleString()} ကျပ်</span>
+
+                                                      <span className="font-medium text-gray-600">ကော်မရှင်:</span>
+                                                      <span className="text-right text-gray-800">{weeklySummaryData.commission.toLocaleString()} ကျပ်</span>
+
+                                                      <span className="font-medium text-gray-600">ပေါက်:</span>
+                                                      <span className="text-right text-gray-800">{weeklySummaryData.totalWinningBetAmount.toLocaleString()} ကျပ်</span>
+
+                                                      <span className="font-medium text-gray-600">ယော်ငွေ:</span>
+                                                      <span className="text-right text-gray-800">{weeklySummaryData.totalPayout.toLocaleString()} ကျပ်</span>
+
+                                                      <div className="border-t pt-2 mt-2 col-span-2">
+                                                          <div className={`flex justify-between items-center text-base font-bold ${weeklySummaryData.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                              <span>{weeklySummaryData.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:'}</span>
+                                                              <span>{Math.abs(weeklySummaryData.profitLoss).toLocaleString()} ကျပ်</span>
+                                                          </div>
+                                                      </div>
+                                                  </div>
+                                              </div>
+
+                                              {/* Per-Customer Weekly Summary */}
+                                              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                                                  <h3 className="text-md font-bold text-gray-800 mb-2">တစ်ဦးချင်း အပတ်ချုပ်</h3>
+                                                  {weeklySummaryData.customerBreakdown.length > 0 ? (
+                                                      <div className="space-y-2">
+                                                          {weeklySummaryData.customerBreakdown.map((customer, index) => (
+                                                              <div key={index} className="bg-gray-50 p-3 rounded-md shadow-sm relative">
+                                                                  <h4 className="font-semibold text-gray-700 mb-1 pr-8">{customer.customerName}</h4>
+                                                                  <button
+                                                                      onClick={() => {
+                                                                          const customerName = customer.customerName;
+                                                                          const salesLine = `ထိုးကြေး=${customer.totalSales.toLocaleString()}`;
+                                                                          const winningLine = customer.totalWinningBetAmount > 0
+                                                                              ? `P-${customer.totalWinningBetAmount.toLocaleString()}=${customer.totalPayout.toLocaleString()}`
+                                                                              : `P-No`;
+                                                                          const profitLossLabel = customer.profitLoss < 0 ? 'ပေးရန်' : 'ရရန်';
+                                                                          const profitLossLine = `${profitLossLabel}=${Math.abs(customer.profitLoss).toLocaleString()}`;
+                                                                          const textToCopy = `${customerName}\n\n${salesLine}\n${winningLine}\n${profitLossLine}`;
+                                                                          copyToClipboard(textToCopy);
+                                                                      }}
+                                                                      className="absolute top-2 right-2 p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
+                                                                      title="ဤစာရင်းကို ကူးယူပါ"
+                                                                      aria-label="Copy Customer Weekly Summary"
+                                                                  >
+                                                                      <Copy size={14} />
+                                                                  </button>
+                                                                  <p className="text-xs text-gray-600">ထိုးကြေး: {customer.totalSales.toLocaleString()}</p>
+                                                                  <p className="text-xs text-gray-600">ပေါက်: {customer.totalWinningBetAmount.toLocaleString()}</p>
+                                                                  <p className="text-xs text-gray-600">ယော်ငွေ: {customer.totalPayout.toLocaleString()}</p>
+                                                                  <p className={`text-sm font-bold ${customer.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                      {customer.profitLoss >= 0 ? 'ရရန်:' : 'ပေးရန်:'} {Math.abs(customer.profitLoss).toLocaleString()}
+                                                                  </p>
+                                                              </div>
+                                                          ))}
+                                                      </div>
+                                                  ) : (
+                                                      <p className="text-center text-gray-500 text-sm">ဤအပတ်အတွက် ထိုးသူစာရင်းမရှိသေးပါ။</p>
+                                                  )}
+                                              </div>
+                                          </div>
+                                      ) : (
+                                          <p className="text-center text-gray-500 mt-4">ဤအပတ်အတွက် စာရင်းမရှိသေးပါ။</p>
+                                      )}
+                                  </div>
+                                  {/* Modal Footer with Copy Button for overall summary */}
+                                  {weeklySummaryData && (
+                                      <div className="p-4 border-t text-center">
+                                          <button
+                                              onClick={() => {
+                                                  const header = `အပတ်ချုပ်စာရင်း (${getStartOfWeek(currentWeekStartDate)} မှ ${getEndOfWeek(currentWeekStartDate)})\n--------------------\n`;
+                                                  const sales = `ရောင်းရငွေ:\t${weeklySummaryData.totalSales.toLocaleString()} ကျပ်\n`;
+                                                  const commission = `ကော်မရှင်:\t\t${weeklySummaryData.commission.toLocaleString()} ကျပ်\n`;
+                                                  const winningBet = `ပေါက်:\t\t\t${weeklySummaryData.totalWinningBetAmount.toLocaleString()} ကျပ်\n`;
+                                                  const payout = `ယော်ငွေ:\t\t${weeklySummaryData.totalPayout.toLocaleString()} ကျပ်\n`;
+                                                  const divider = `--------------------\n`;
+                                                  const profitLossLabel = weeklySummaryData.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:';
+                                                  const profitLoss = `${profitLossLabel}\t\t${Math.abs(weeklySummaryData.profitLoss).toLocaleString()} ကျပ်`;
+                                                  let textToCopy = header + sales + commission + winningBet + payout + divider + profitLoss + '\n\n';
+
+                                                  if (weeklySummaryData.customerBreakdown.length > 0) {
+                                                      textToCopy += 'တစ်ဦးချင်း အပတ်ချုပ်:\n--------------------\n';
+                                                      weeklySummaryData.customerBreakdown.forEach(customer => {
+                                                          const customerName = customer.customerName;
+                                                          const salesLine = `ထိုးကြေး=${customer.totalSales.toLocaleString()}`;
+                                                          const winningLine = customer.totalWinningBetAmount > 0
+                                                              ? `P-${customer.totalWinningBetAmount.toLocaleString()}=${customer.totalPayout.toLocaleString()}`
+                                                              : `P-No`;
+                                                          const profitLossLabel = customer.profitLoss < 0 ? 'ပေးရန်' : 'ရရန်';
+                                                          const profitLossLine = `${profitLossLabel}=${Math.abs(customer.profitLoss).toLocaleString()}`;
+                                                          textToCopy += `${customerName}\n${salesLine}\n${winningLine}\n${profitLossLine}\n\n`;
+                                                      });
+                                                  }
+                                                  copyToClipboard(textToCopy.trim());
+                                              }}
+                                              className="flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
+                                              aria-label="Copy Weekly Summary"
+                                          >
+                                              <Copy size={20} className="mr-2" /> စာရင်းအားလုံး ကူးယူမည်
+                                          </button>
+                                      </div>
+                                  )}
+                              </>
+                          )}
+                          {showCopyConfirmation && (
+                              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fade-in-out">
+                                  စာရင်းကို ကူးယူပြီးပါပြီ။
+                              </div>
+                          )}
+                      </div>
+                  </div>
               )}
 
               {/* Manage Customers Modal */}
