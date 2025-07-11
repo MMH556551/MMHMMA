@@ -561,9 +561,11 @@
                 equal: /^(\d{1,2})=(\d+)$/,
                 reverse: /^(\d{1,2})[Rr](\d+)$/,
                 dotFormat: /^(\d{1,2}(?:\.\d{1,2})+)([Rr=])(\d+)$/,
+                // New pattern for multiple delimiters with 'r'
+                multiDelimiterReverse: /^(\d{1,2}(?:[#\-@$/]\d{1,2})+)([Rr])\s*(\d+)$/, // Added this line
                 slash: /^(\d{1,2})\/(\d{1,2})([Rr=])(\d+)$/,
                 kway: /^(\d+)\s*ခွေ\s*(\d+)$/,
-                topBottom: /^(\d)\s*(ထိပ်|ပိတ်)(\d+)$/,
+                topBottom: /^(\d+)\s*(ထိပ်|ပိတ်)(\d+)$/,
                 par: /^(\d)\s*(ပါ|ပါတ်)(\d+)$/,
                 brake: /^(\d+)\s*ဘရိတ်\s*(\d+)$/,
               };
@@ -628,6 +630,26 @@
                   parsed.push({ number: reversedNum, amount: amount });
                 } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
               }
+              else if ((match = cleanLine.match(patterns.multiDelimiterReverse))) { // Added this block
+                matchFound = true;
+                // Split by any of the allowed delimiters: #, -, @, $, /
+                const numsStr = match[1]; // e.g., "89#83#84#93#94#34"
+                const operator = match[2]; // 'R' or 'r'
+                const amount = parseInt(match[3]);
+
+                // Use a regex to split by any of the delimiters
+                const numList = numsStr.split(/[#\-@$/]/);
+
+                if (!isNaN(amount) && numList.every(n => n.length === 2 && !isNaN(parseInt(n)))) {
+                  numList.forEach(num => {
+                    parsed.push({ number: num, amount: amount });
+                    if (operator.toLowerCase() === 'r') {
+                      const reversedNum = num[1] + num[0];
+                      parsed.push({ number: reversedNum, amount: amount });
+                    }
+                  });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
               else if ((match = cleanLine.match(patterns.dotFormat))) {
                 matchFound = true;
                 const numsStr = match[1];
@@ -670,20 +692,29 @@
                   } else { errors.push({ originalLine: line, message: `'${digitsString}' မှ ဂဏန်းတွဲများ ထုတ်၍ မရပါ။ ဂဏန်းအရေအတွက် အနည်းဆုံး ၂ လုံး လိုအပ်ပါသည်။` }); }
                 } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
               }
+              // UPDATED LOGIC FOR TOP/BOTTOM BETS
               else if ((match = cleanLine.match(patterns.topBottom))) {
                 matchFound = true;
-                const digit = match[1];
-                const type = match[2];
+                const digitsString = match[1]; // e.g., "1234567890"
+                const type = match[2]; // 'ထိပ်' or 'ပိတ်'
                 const amount = parseInt(match[3]);
-                if (digit.length === 1 && !isNaN(amount)) {
-                  for (let i = 0; i < 10; i++) {
-                    let num;
-                    if (type === 'ထိပ်') { num = `${digit}${i}`; }
-                    else { num = `${i}${digit}`; }
-                    parsed.push({ number: num, amount: amount });
+                if (!isNaN(amount)) {
+                  // Iterate over each digit in the digitsString
+                  for (const digit of digitsString) {
+                    if (digit.length === 1) { // Ensure it's a single digit
+                      for (let i = 0; i < 10; i++) {
+                        let num;
+                        if (type === 'ထိပ်') { num = `${digit}${i}`; } // e.g., 1ထိပ် -> 10,11,...,19
+                        else { num = `${i}${digit}`; } // e.g., 1ပိတ် -> 01,11,...,91
+                        parsed.push({ number: String(num).padStart(2, '0'), amount: amount }); // Ensure 2-digit format (e.g., 01)
+                      }
+                    } else {
+                      errors.push({ originalLine: line, message: `ထိပ်/ပိတ် အတွက် ဂဏန်းတစ်ခုချင်းစီ မှားယွင်းပါသည်။ (${digit})` });
+                    }
                   }
-                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
-              } else if ((match = cleanLine.match(patterns.par))) {
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              else if ((match = cleanLine.match(patterns.par))) {
                 matchFound = true;
                 const digit = match[1];
                 const amount = parseInt(match[3]);
