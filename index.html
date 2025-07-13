@@ -103,6 +103,33 @@
             background-color: #bfdbfe; /* Tailwind blue-200 for selected state */
             border: 1px solid #60a5fa; /* Tailwind blue-400 border */
         }
+        /* Styling for aggregated sales list */
+        .aggregated-list-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .aggregated-list-item:last-child {
+            border-bottom: none;
+        }
+        /* Styling for copy message */
+        .copy-message {
+            position: fixed;
+            bottom: 100px; /* Adjust as needed */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4CAF50; /* Green background */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 1001; /* Above modals */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .copy-message.show {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -344,7 +371,7 @@
 
             if (!userId || !currentNickname) {
                 document.getElementById('sales-records-list').innerHTML = '<p class="text-center text-gray-500 mt-4">Nickname ကိုရွေးချယ်ပါ</p>';
-                document.getElementById('total-bet-amount').textContent = `စုစုပေါင်း: 0 ကျပ်`;
+                document.getElementById('total-bet-amount').textContent = `စုစုပေါင်း: 0`;
                 return;
             }
 
@@ -377,8 +404,7 @@
 
             if (!userId || !adminViewNickname) {
                 document.getElementById('admin-sales-records-list').innerHTML = '<p class="text-center text-gray-500 mt-4">ကြည့်ရှုရန် Nickname ကိုရွေးချယ်ပါ</p>';
-                document.getElementById('admin-total-bet-amount').textContent = `စုစုပေါင်း: 0 ကျပ်`;
-                document.getElementById('admin-sales-list-header').textContent = ``;
+                document.getElementById('admin-total-bet-amount').textContent = `စုစုပေါင်း: 0`;
                 return;
             }
 
@@ -421,7 +447,7 @@
                     div.innerHTML = `
                         <div class="flex flex-col">
                             <span class="text-lg font-semibold text-blue-700 whitespace-pre-wrap">${displayContent}</span>
-                            <span class="text-sm text-gray-600">${record.betAmount ? record.betAmount.toLocaleString() : 'N/A'} ကျပ်</span>
+                            <span class="text-sm text-gray-600">${record.betAmount ? record.betAmount.toLocaleString() : 'N/A'}</span>
                         </div>
                         <button class="text-red-500 hover:text-red-700 p-2 rounded-full transition-colors" onclick="deleteRecord('${record.id}')">
                             <!-- Trash icon SVG -->
@@ -432,7 +458,7 @@
                 });
             }
             // Update total bet amount display
-            document.getElementById(totalElementId).textContent = `စုစုပေါင်း: ${totalBetAmount.toLocaleString()} ကျပ်`;
+            document.getElementById(totalElementId).textContent = `စုစုပေါင်း: ${totalBetAmount.toLocaleString()}`;
         }
 
         // Helper function to add a single record to Firestore
@@ -624,7 +650,7 @@
 
             let message;
             if (success) {
-                message = `မှတ်တမ်းများ အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။ စုစုပေါင်းထိုးကြေး: ${totalBetAmountForBatch.toLocaleString()} ကျပ်။`;
+                message = `မှတ်တမ်းများ အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။ စုစုပေါင်းထိုးကြေး: ${totalBetAmountForBatch.toLocaleString()}။`;
                 recordInput.value = ''; // Clear textarea on success
             } else {
                 message = `မှတ်တမ်းထည့်သွင်းရာတွင် ပြဿနာရှိပါသည်။ ကျေးဇူးပြု၍ ပြန်လည်စစ်ဆေးပါ။`;
@@ -673,7 +699,7 @@
             adminViewNickname = ''; // Reset selected admin nickname when entering the page
             document.getElementById('admin-sales-list-header').textContent = ''; // Clear header
             document.getElementById('admin-sales-records-list').innerHTML = '<p class="text-center text-gray-500 mt-4">ကြည့်ရှုရန် Nickname ကိုရွေးချယ်ပါ</p>';
-            document.getElementById('admin-total-bet-amount').textContent = `စုစုပေါင်း: 0 ကျပ်`;
+            document.getElementById('admin-total-bet-amount').textContent = `စုစုပေါင်း: 0`;
 
             populateAdminNicknamesPage(); // Populate the nickname list on the admin page
         });
@@ -735,6 +761,227 @@
             loadAdminSalesRecords(); // Load records for the newly selected nickname
         }
 
+        // Function to show aggregated sales across all nicknames for the current date
+        async function showAggregatedSales() {
+            if (!userId) {
+                document.getElementById('message-box-content').textContent = 'အကောင့်ဝင်ရောက်ရန်စောင့်ဆိုင်းနေပါသည်...';
+                document.getElementById('message-box').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('aggregated-sales-list').innerHTML = '<p class="text-center text-gray-500 mt-4">စာရင်းများ တွက်ချက်နေသည်...</p>';
+            document.getElementById('aggregated-total-amount').textContent = `Total = 0`;
+            document.getElementById('aggregated-sales-date').textContent = formatDate(currentSelectedDate);
+            document.getElementById('aggregated-sales-modal').classList.remove('hidden');
+
+            let aggregatedBets = new Map();
+            for (let i = 0; i < 100; i++) {
+                aggregatedBets.set(String(i).padStart(2, '0'), 0);
+            }
+
+            let overallTotal = 0;
+            const dateString = formatDate(currentSelectedDate);
+            let uniqueNumbersCount = 0; // To count unique numbers with sales
+
+            try {
+                // Fetch ALL nickname documents from the top-level salesRecords collection
+                const nicknamesCollectionRef = collection(db, `salesRecords`);
+                const nicknamesSnapshot = await getDocs(nicknamesCollectionRef);
+
+                for (const nicknameDoc of nicknamesSnapshot.docs) {
+                    const nickname = nicknameDoc.id; // The document ID is the nickname
+                    const recordsCollectionRef = collection(db, `salesRecords/${nickname}/dates/${dateString}/entries`);
+                    const salesSnapshot = await getDocs(recordsCollectionRef);
+
+                    salesSnapshot.forEach((recordDoc) => {
+                        const recordData = recordDoc.data();
+                        const displayString = recordData.displayString; // The original input string for the batch
+                        const lines = displayString.split('\n');
+
+                        for (const line of lines) {
+                            const trimmedLine = line.trim();
+                            if (!trimmedLine) continue;
+
+                            let amountPerNumber = 0;
+                            let numbersAffected = new Set(); // Use a Set to avoid duplicate numbers (e.g., 11R)
+
+                            // Regex for Direct/Reverse (single or multiple numbers separated by . or /)
+                            let match = trimmedLine.match(/^\s*(\d+(?:[./]\s*\d+)*)\s*([=R])\s*(\d+)\s*$/i);
+                            if (match) {
+                                const numbersPart = match[1].replace(/\s/g, '');
+                                const operator = match[2];
+                                amountPerNumber = parseFloat(match[3]);
+                                const individualNumbers = numbersPart.split(/[./]/);
+                                const isReverse = (operator.toUpperCase() === 'R');
+
+                                for (const numStr of individualNumbers) {
+                                    const formattedNum = numStr.padStart(2, '0');
+                                    numbersAffected.add(formattedNum);
+                                    if (isReverse) {
+                                        const reversedNum = formattedNum[1] + formattedNum[0];
+                                        if (formattedNum !== reversedNum) { // Only add if not a double digit (e.g., 11, 22)
+                                            numbersAffected.add(reversedNum); // Add reversed number
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Regex for ထိပ် (Top) bet
+                                match = trimmedLine.match(/^\s*(\d+)\s*ထိပ်\s*(?:[=R])?\s*(\d+)\s*$/i);
+                                if (match) {
+                                    const topDigit = match[1];
+                                    amountPerNumber = parseFloat(match[2]);
+                                    for (let i = 0; i <= 9; i++) {
+                                        numbersAffected.add(`${topDigit}${i}`);
+                                    }
+                                } else {
+                                    // Regex for ပိတ် (Bottom) bet
+                                    match = trimmedLine.match(/^\s*(\d+)\s*ပိတ်\s*(?:[=R])?\s*(\d+)\s*$/i);
+                                    if (match) {
+                                        const bottomDigit = match[1];
+                                        amountPerNumber = parseFloat(match[2]);
+                                        for (let i = 0; i <= 9; i++) {
+                                            numbersAffected.add(`${i}${bottomDigit}`);
+                                        }
+                                    } else {
+                                        // Regex for ခွေ (All/Full) bet
+                                        match = trimmedLine.match(/^\s*(\d*)\s*ခွေ\s*(?:[=R])?\s*(\d+)\s*$/i);
+                                        if (match) {
+                                            amountPerNumber = parseFloat(match[2]);
+                                            for (let i = 0; i <= 99; i++) {
+                                                numbersAffected.add(String(i).padStart(2, '0'));
+                                            }
+                                        } else {
+                                            // Special handling for "X ပါ YYY" and "X ပါတ် YYY"
+                                            match = trimmedLine.match(/^\s*(\d+)\s*(?:ပါ|ပါတ်)\s*(?:[=R])?\s*(\d+)\s*$/i);
+                                            if (match) {
+                                                const digit = match[1];
+                                                amountPerNumber = parseFloat(match[2]);
+                                                for (let i = 0; i <= 99; i++) {
+                                                    const numStr = String(i).padStart(2, '0');
+                                                    if (numStr.includes(digit)) {
+                                                        numbersAffected.add(numStr);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Add amounts to aggregatedBets for each unique number affected by this line
+                            if (amountPerNumber > 0 && numbersAffected.size > 0) {
+                                for (const num of numbersAffected) {
+                                    const formattedNum = num.padStart(2, '0'); // Ensure 2 digits
+                                    aggregatedBets.set(formattedNum, (aggregatedBets.get(formattedNum) || 0) + amountPerNumber);
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Populate the modal with aggregated data
+                const aggregatedListElement = document.getElementById('aggregated-sales-list');
+                aggregatedListElement.innerHTML = ''; // Clear previous content
+                overallTotal = 0;
+                uniqueNumbersCount = 0; // Reset count for display
+
+                // Sort numbers from 00 to 99
+                const sortedNumbers = Array.from(aggregatedBets.keys()).sort();
+
+                sortedNumbers.forEach(num => {
+                    const amount = aggregatedBets.get(num);
+                    if (amount > 0) { // Only show numbers with actual bets
+                        const div = document.createElement('div');
+                        div.className = 'aggregated-list-item text-gray-800';
+                        div.innerHTML = `
+                            <span class="font-mono text-lg">${num} =</span>
+                            <span class="font-semibold text-lg">${amount.toLocaleString()}</span>
+                        `;
+                        aggregatedListElement.appendChild(div);
+                        overallTotal += amount;
+                        uniqueNumbersCount++; // Increment count of unique numbers with sales
+                    }
+                });
+
+                if (overallTotal === 0) {
+                    aggregatedListElement.innerHTML = '<p class="text-center text-gray-500 mt-4">ယနေ့အတွက် စုပေါင်းအရောင်းမှတ်တမ်းများ မရှိသေးပါ</p>';
+                }
+
+                document.getElementById('aggregated-total-amount').textContent = `Total = ${overallTotal.toLocaleString()}`;
+                // Update the modal header with the unique numbers count
+                document.getElementById('aggregated-sales-modal-title').textContent = `စုစုပေါင်း: ဂဏန်းအားလုံးရောင်းစာရင်း (${uniqueNumbersCount}) ကျပ်`;
+
+
+            } catch (error) {
+                console.error("Error fetching aggregated sales records:", error);
+                document.getElementById('message-box-content').textContent = `စုပေါင်းအရောင်းစာရင်းများတင်ရာတွင် ပြဿနာရှိပါသည်: ${error.message}`;
+                document.getElementById('message-box').classList.remove('hidden');
+            }
+        }
+
+        // Function to copy aggregated sales data to clipboard
+        function copyAggregatedSales() {
+            const listItems = document.querySelectorAll('#aggregated-sales-list .aggregated-list-item');
+            let textToCopy = '';
+
+            listItems.forEach(item => {
+                const number = item.querySelector('span:first-child').textContent.replace(' =', '').trim();
+                const amount = item.querySelector('span:last-child').textContent.trim();
+                textToCopy += `${number} = ${amount}\n`;
+            });
+
+            const totalAmount = document.getElementById('aggregated-total-amount').textContent;
+            textToCopy += `${totalAmount}\n`; // Add the total amount
+
+            // Create a temporary textarea to copy text
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = textToCopy;
+            // Make it temporarily visible and selectable, but off-screen
+            tempTextArea.style.position = 'absolute';
+            tempTextArea.style.left = '-9999px';
+            tempTextArea.style.top = '0';
+            tempTextArea.style.width = '1px';
+            tempTextArea.style.height = '1px';
+            tempTextArea.style.opacity = '0';
+            tempTextArea.style.display = 'block'; // Ensure it's not hidden by display: none
+            tempTextArea.style.visibility = 'visible'; // Ensure it's not hidden by visibility: hidden
+
+
+            document.body.appendChild(tempTextArea);
+
+            // Select the text in the textarea
+            tempTextArea.focus(); // Ensure it has focus
+            tempTextArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    // Show a temporary "Copied!" message
+                    const copyMessage = document.getElementById('copy-message');
+                    copyMessage.textContent = 'ကူးယူပြီးပါပြီ!';
+                    copyMessage.classList.add('show');
+                    setTimeout(() => {
+                        copyMessage.classList.remove('show');
+                    }, 2000); // Hide after 2 seconds
+                } else {
+                    document.getElementById('message-box-content').textContent = 'ကူးယူ၍ မရပါ။ ကျေးဇူးပြု၍ ကိုယ်တိုင် ကူးယူပါ။';
+                    document.getElementById('message-box').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                document.getElementById('message-box-content').textContent = `ကူးယူ၍ မရပါ။ ပြဿနာ: ${err.message}`;
+                document.getElementById('message-box').classList.remove('hidden');
+            } finally {
+                document.body.removeChild(tempTextArea);
+            }
+        }
+
+        // Event listener to close the aggregated sales modal
+        document.getElementById('close-aggregated-sales-modal').addEventListener('click', () => {
+            document.getElementById('aggregated-sales-modal').classList.add('hidden');
+        });
+
+
         // Event listener to go back to the main view from admin page
         document.getElementById('back-to-main-btn').addEventListener('click', () => {
             document.getElementById('admin-page-view').classList.add('hidden');
@@ -781,6 +1028,8 @@
         window.deleteRecord = deleteRecord;
         window.processInputAndAddRecords = processInputAndAddRecords; // Expose the new function
         window.showConfirmBox = showConfirmBox; // Make confirm box accessible from HTML
+        window.showAggregatedSales = showAggregatedSales; // Expose new aggregated sales function
+        window.copyAggregatedSales = copyAggregatedSales; // Expose new copy function
     </script>
 
     <!-- Main Application Container -->
@@ -828,7 +1077,22 @@
 
         <!-- Total Bet Amount Display -->
         <div class="bg-white p-4 rounded-xl shadow-md text-right text-lg font-bold text-blue-800 mb-4">
-            <span id="total-bet-amount">စုစုပေါင်း: 0 ကျပ်</span>
+            <span id="total-bet-amount">စုစုပေါင်း: 0</span>
+        </div>
+
+        <!-- Bet Amount Input Section (Moved inside main-app-view) -->
+        <div class="w-full bg-white p-4 shadow-lg rounded-xl mt-4">
+            <div class="max-w-xl mx-auto">
+                <div class="flex items-end space-x-3 mb-3">
+                    <textarea id="record-input" placeholder="နံပါတ်=ထိုးကြေး (ဥပမာ: 12=100 သို့မဟုတ် 12R100)&#10;12.13.14.15R2000&#10;24.25.26.27=1000&#10;1ထိပ်100&#10;ခွေ50&#10;1ပါ100" rows="4" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base resize-y"></textarea>
+                    <button onclick="processInputAndAddRecords()" class="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors flex-shrink-0 h-fit">
+                        <!-- Plus icon SVG -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    </button>
+                </div>
+            </div>
+            <!-- Two lines of empty space below the input as requested -->
+            <div class="h-8"></div>
         </div>
     </div>
 
@@ -841,7 +1105,11 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
             </button>
             <h2 class="text-xl font-bold text-gray-800">Admin View</h2>
-            <div></div> <!-- Placeholder for spacing -->
+            <!-- New button for aggregated sales -->
+            <button onclick="showAggregatedSales()" class="p-2 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors">
+                <!-- Calculator icon SVG -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calculator"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8"/><path d="M8 10h8"/><path d="M8 14h8"/><path d="M8 18h8"/></svg>
+            </button>
         </div>
 
         <!-- Admin Nickname List -->
@@ -859,24 +1127,9 @@
 
         <!-- Admin Total Bet Amount Display -->
         <div class="bg-white p-4 rounded-xl shadow-md text-right text-lg font-bold text-blue-800 mb-4">
-            <span id="admin-total-bet-amount">စုစုပေါင်း: 0 ကျပ်</span>
+            <span id="admin-total-bet-amount">စုစုပေါင်း: 0</span>
         </div>
-    </div>
-
-    <!-- Bet Amount Input Section (Fixed at bottom of screen) -->
-    <div class="fixed bottom-0 left-0 w-full bg-white p-4 shadow-lg rounded-t-2xl">
-        <div class="max-w-xl mx-auto">
-            <div class="flex items-end space-x-3 mb-3"> <!-- Changed items-center to items-end for textarea alignment -->
-                <textarea id="record-input" placeholder="နံပါတ်=ထိုးကြေး (ဥပမာ: 12=100 သို့မဟုတ် 12R100)&#10;12.13.14.15R2000&#10;24.25.26.27=1000&#10;1ထိပ်100&#10;ခွေ50&#10;1ပါ100" rows="4" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base resize-y"></textarea>
-                <button onclick="processInputAndAddRecords()" class="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors flex-shrink-0 h-fit"> <!-- h-fit to align with textarea -->
-                    <!-- Plus icon SVG -->
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                </button>
-            </div>
-            <!-- Button for "1 ပါ 100" is removed as requested -->
-        </div>
-        <!-- Two lines of empty space below the input as requested -->
-        <div class="h-8"></div>
+        <!-- Input section is intentionally NOT present here for admin view -->
     </div>
 
     <!-- Nickname Selection/Add Modal (remains a modal) -->
@@ -916,7 +1169,28 @@
         </div>
     </div>
 
+    <!-- Aggregated Sales Modal -->
+    <div id="aggregated-sales-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <!-- Updated header for aggregated sales -->
+            <h3 id="aggregated-sales-modal-title" class="text-xl font-bold text-gray-800 mb-4">စုစုပေါင်း အရောင်းစာရင်း (<span id="aggregated-sales-date"></span>)</h3>
+            <div id="aggregated-sales-list" class="flex-1 overflow-y-auto mb-4 space-y-1">
+                <!-- Aggregated sales will be dynamically loaded here -->
+                <p class="text-center text-gray-500 mt-4">စာရင်းများ တွက်ချက်နေသည်...</p>
+            </div>
+            <div class="text-right text-lg font-bold text-blue-800">
+                <span id="aggregated-total-amount">Total = 0</span>
+            </div>
+            <div class="flex justify-end space-x-3 mt-4">
+                <button onclick="copyAggregatedSales()" class="bg-green-600 text-white hover:bg-green-700">ကူးယူမည်</button>
+                <button id="close-aggregated-sales-modal" class="bg-gray-300 text-gray-800 hover:bg-gray-400">ပိတ်မည်</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Copy Message -->
+    <div id="copy-message" class="copy-message">ကူးယူပြီးပါပြီ!</div>
+
 </body>
 </html>
-
 
