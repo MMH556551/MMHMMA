@@ -439,6 +439,10 @@
         async function addRecordToFirestore(numbers, betAmount, isReverse, nickname, date, displayString) {
             try {
                 const dateString = formatDate(date);
+                // Ensure the nickname document exists at the top level of salesRecords
+                // This makes the nickname discoverable for admin view.
+                await setDoc(doc(db, `salesRecords/${nickname}`), { lastActive: new Date() }, { merge: true });
+
                 // Use simplified path for sales records
                 await addDoc(collection(db, `salesRecords/${nickname}/dates/${dateString}/entries`), {
                     betAmount: betAmount,
@@ -682,13 +686,14 @@
                 const allNicknamesToShow = new Set();
 
                 // 1. Fetch nicknames that have public sales records (from anyone)
+                // Now, `salesRecords` should contain documents for each nickname due to `setDoc` in `addRecordToFirestore`
                 const salesRecordsCollectionRef = collection(db, `salesRecords`);
                 const salesQuerySnapshot = await getDocs(salesRecordsCollectionRef);
                 salesQuerySnapshot.forEach(doc => {
-                    allNicknamesToShow.add(doc.id); // doc.id here represents a nickname
+                    allNicknamesToShow.add(doc.id); // doc.id here represents a nickname document ID
                 });
 
-                // 2. Fetch nicknames created by the current user
+                // 2. Fetch nicknames created by the current user (MMH) - this is less critical now but good for completeness
                 const userNicknamesCollectionRef = collection(db, `users/${userId}/nicknames`);
                 const userNicknamesQuerySnapshot = await getDocs(userNicknamesCollectionRef);
                 userNicknamesQuerySnapshot.forEach(doc => {
@@ -701,7 +706,7 @@
                     document.getElementById('admin-nickname-list-page').innerHTML = '<p class="text-center text-gray-500 mt-4">ကြည့်ရှုရန် Nickname မရှိသေးပါ</p>';
                 } else {
                     sortedNicknames.forEach(nick => {
-                        if (nick === 'MMH') return; // Don't show 'MMH' in the list to view itself
+                        if (nick === 'MMH') return; // Don't show 'MMH' (the admin's own nickname) in the list to view
                         const div = document.createElement('div');
                         div.className = `admin-nickname-item ${nick === adminViewNickname ? 'selected' : ''}`;
                         div.textContent = nick;
@@ -913,4 +918,5 @@
 
 </body>
 </html>
+
 
