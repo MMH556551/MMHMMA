@@ -3,1194 +3,1871 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D အရောင်း စာရင်း</title>
-    <!-- Tailwind CSS CDN -->
+    <title>MMH 2D</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter for modern look -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Apply Inter font to the entire body */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5; /* Light grey background */
-            color: #333; /* Dark grey text */
+            /* Add this to prevent pull-to-refresh on mobile browsers */
+            overscroll-behavior-y: contain;
         }
-        /* Custom scrollbar for better aesthetics */
-        ::-webkit-scrollbar {
-            width: 8px; /* Width of the scrollbar */
+        /* Custom CSS for hiding scrollbars on specific elements */
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        /* Keyframe animation for a fade-in-out effect */
+        @keyframes fade-in-out {
+            0% { opacity: 0; transform: translateY(10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(0); }
         }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1; /* Color of the track */
-            border-radius: 10px; /* Rounded corners for the track */
+        .animate-fade-in-out { animation: fade-in-out 2s ease-in-out forwards; }
+        /* Keyframe animation for a spinning loader */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        ::-webkit-scrollbar-thumb {
-            background: #888; /* Color of the scroll thumb */
-            border-radius: 10px; /* Rounded corners for the thumb */
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555; /* Color of the thumb on hover */
-        }
-        /* Styling for individual record items */
-        .record-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            background-color: #ffffff; /* White background */
-            border-radius: 12px; /* Rounded corners */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Subtle shadow */
-            transition: transform 0.2s ease-in-out; /* Smooth transition for hover effect */
-        }
-        .record-item:hover {
-            transform: translateY(-2px); /* Lift effect on hover */
-        }
-        /* Styling for modal overlay */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
+        .animate-spin { animation: spin 1s linear infinite; }
+
+        /* Ensure input type="date" matches other inputs' style and hides default icon */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            color: rgba(0, 0, 0, 0);
+            opacity: 0;
+            display: block;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black overlay */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000; /* Ensure modal is on top */
-        }
-        /* Styling for modal content box */
-        .modal-content {
-            background-color: #ffffff; /* White background */
-            padding: 24px;
-            border-radius: 16px; /* Rounded corners */
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); /* Stronger shadow */
-            width: 90%; /* Responsive width */
-            max-width: 400px; /* Max width for larger screens */
-            max-height: 80vh; /* Max height for scrollable content */
-            overflow-y: auto; /* Enable vertical scrolling if content overflows */
-            display: flex;
-            flex-direction: column;
-            gap: 16px; /* Space between elements */
-        }
-        /* Styling for buttons within modals */
-        .modal-content button {
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-weight: 500;
+            position: absolute;
+            top: 0;
+            left: 0;
             cursor: pointer;
-            transition: background-color 0.2s;
         }
-        /* Styling for input fields within modals */
-        .modal-content input {
-            padding: 10px 12px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-            width: 100%;
-        }
-        /* Styling for nickname items in admin view modal */
-        .admin-nickname-item {
-            padding: 10px 15px;
-            background-color: #f8f8f8; /* Light background */
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .admin-nickname-item:hover {
-            background-color: #e0e0e0; /* Darker background on hover */
-        }
-        .admin-nickname-item.selected {
-            background-color: #bfdbfe; /* Tailwind blue-200 for selected state */
-            border: 1px solid #60a5fa; /* Tailwind blue-400 border */
-        }
-        /* Styling for aggregated sales list */
-        .aggregated-list-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .aggregated-list-item:last-child {
-            border-bottom: none;
-        }
-        /* Styling for copy message */
-        .copy-message {
-            position: fixed;
-            bottom: 100px; /* Adjust as needed */
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #4CAF50; /* Green background */
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            z-index: 1001; /* Above modals */
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-        }
-        .copy-message.show {
-            opacity: 1;
+        input[type="date"] {
+            -webkit-appearance: none;
+            appearance: none;
+            position: relative;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-gray-100">
 
-    <!-- Firebase SDKs -->
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <script type="module">
-        // Import necessary Firebase functions
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
+        import { getFirestore, collection, query, onSnapshot, addDoc, setDoc, deleteDoc, doc, getDoc, getDocs, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
 
-        // Declare global variables for Firebase instances and app state
-        let app;
-        let db;
-        let auth;
-        let userId; // Current authenticated user's ID
-        let currentNickname = ''; // Currently selected nickname
-        let nicknames = []; // List of nicknames for the current user
-        let isAdmin = false; // Flag to check if currentNickname is 'MMH'
-        let currentSelectedDate = new Date(); // The date currently being viewed
-        let salesRecords = []; // Sales records for the current view
-        let adminViewNickname = ''; // Stores the nickname being viewed by the admin
-
-        // YOUR Firebase project's configuration.
-        // This should be copied directly from your Firebase Console -> Project settings -> Your apps -> Web app.
-        const firebaseConfig = {
-          apiKey: "AIzaSyDUf0QF4GqMb6s9ODTUiX7aTHRTR0YUqcE",
-          authDomain: "html-3ce83.firebaseapp.com",
-          projectId: "html-3ce83",
-          storageBucket: "html-3ce83.firebasestorage.app",
-          messagingSenderId: "602585837585",
-          appId: "1:602585837585:web:16307f3f44a881c14d81b0"
-          // measurementId is removed as getAnalytics is not used
-          // databaseURL is removed as it's for Realtime Database, not Firestore
+        // Expose Firebase functions and objects globally for the Babel script
+        window.firebase = {
+            initializeApp,
+            getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getFirestore, collection, query, onSnapshot, addDoc, setDoc, deleteDoc, doc, getDoc, getDocs, updateDoc, where
         };
 
-        // Initialize Firebase
-        try {
-            app = initializeApp(firebaseConfig); // Initialize Firebase app with YOUR config
-            db = getFirestore(app); // Get Firestore instance
-            auth = getAuth(app); // Get Auth instance
-            console.log("Firebase Initialized successfully.");
-        } catch (e) {
-            console.error("Firebase initialization failed:", e);
-            // Display an error message to the user using the custom message box
-            document.getElementById('message-box-content').textContent = 'Firebase စတင်မှုတွင် ပြဿနာရှိပါသည်။ သင့်ရဲ့ Firebase Config ကို မှန်ကန်စွာ ထည့်သွင်းထားခြင်း ရှိမရှိ စစ်ဆေးပါ။';
-            document.getElementById('message-box').classList.remove('hidden');
-        }
-
-        // Authentication State Listener
-        // This listener fires whenever the user's sign-in state changes.
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                // User is signed in
-                userId = user.uid;
-                console.log("User signed in:", userId);
-                document.getElementById('user-id-display').textContent = `User ID: ${userId}`;
-                await loadNicknames(); // Load nicknames for the authenticated user
-                updateUI(); // Update UI elements based on auth state and nickname
-            } else {
-                // User is signed out, attempt to sign in anonymously
-                console.log("No user signed in, attempting anonymous sign-in.");
-                document.getElementById('user-id-display').textContent = `User ID: မဝင်ရသေးပါ`;
-                try {
-                    await signInAnonymously(auth); // Use anonymous sign-in for GitHub Pages
-                } catch (error) {
-                    console.error("Error during authentication:", error);
-                    document.getElementById('message-box-content').textContent = `အကောင့်ဝင်ရောက်မှုတွင် ပြဿနာရှိပါသည်: ${error.message}`;
-                    document.getElementById('message-box').classList.remove('hidden');
-                }
-            }
+        // Your web app's Firebase configuration (provided by user)
+        // NOTE: These variables are used in the React code.
+        window.__app_id = "1:602585837585:web:470e15eb4a5fd4d64d81b0";
+        window.__firebase_config = JSON.stringify({
+            apiKey: "AIzaSyDUf0QF4GqMb6s9ODTUiX7aTHRTR0YUqcE",
+            authDomain: "html-3ce83.firebaseapp.com",
+            databaseURL: "https://html-3ce83-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "html-3ce83",
+            storageBucket: "html-3ce83.firebasestorage.app",
+            messagingSenderId: "602585837585",
+            appId: "1:602585837585:web:470e15eb4a5fd4d64d81b0",
+            measurementId: "G-44BG2J1XQ3"
         });
-
-        // Utility function to format a Date object into YYYY-MM-DD string
-        function formatDate(date) {
-            const yyyy = date.getFullYear();
-            const mm = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-            const dd = String(date.getDate()).padStart(2, '0');
-            return `${yyyy}-${mm}-${dd}`;
-        }
-
-        // Update the displayed date in the header (only for main view)
-        function displayDate() {
-            document.getElementById('current-date').textContent = formatDate(currentSelectedDate);
-            document.getElementById('current-date-header').textContent = formatDate(currentSelectedDate);
-        }
-
-        // Change the current selected date by a number of days
-        function changeDate(days) {
-            currentSelectedDate.setDate(currentSelectedDate.getDate() + days);
-            displayDate(); // Update date display on the main page
-            // If admin view is active, reload admin sales, otherwise reload main sales
-            if (document.getElementById('admin-page-view').classList.contains('flex')) {
-                loadAdminSalesRecords();
-            } else {
-                loadSalesRecords();
-            }
-        }
-
-        // Load Nicknames from Firestore for the current user
-        async function loadNicknames() {
-            if (!userId) {
-                console.warn("User ID not available yet for loading nicknames.");
-                return;
-            }
-            try {
-                // Use simplified path for nicknames collection
-                const q = collection(db, `users/${userId}/nicknames`);
-                const querySnapshot = await getDocs(q);
-                nicknames = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                console.log("Loaded nicknames:", nicknames);
-                // If no nickname is currently selected, set the first loaded one as default
-                if (nicknames.length > 0 && !currentNickname) {
-                    currentNickname = nicknames[0].name;
-                }
-                updateNicknameDisplay(); // Update the nickname display in the UI
-            } catch (error) {
-                console.error("Error loading nicknames:", error);
-                document.getElementById('message-box-content').textContent = `Nickname များတင်ရာတွင် ပြဿနာရှိပါသည်: ${error.message}`;
-                document.getElementById('message-box').classList.remove('hidden');
-            }
-        }
-
-        // Event listener for the nickname button to open the modal
-        document.getElementById('nickname-btn').addEventListener('click', () => {
-            if (!userId) {
-                document.getElementById('message-box-content').textContent = 'အကောင့်ဝင်ရောက်ရန်စောင့်ဆိုင်းနေပါသည်...';
-                document.getElementById('message-box').classList.remove('hidden');
-                return;
-            }
-            // Clear previous list and populate with current nicknames
-            document.getElementById('nickname-list').innerHTML = '';
-            nicknames.forEach(nick => {
-                const div = document.createElement('div');
-                div.className = `p-3 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors ${nick.name === currentNickname ? 'bg-blue-200 border border-blue-400' : 'bg-gray-100'}`;
-                div.textContent = nick.name;
-                div.onclick = () => selectNickname(nick.name); // Set click handler
-                document.getElementById('nickname-list').appendChild(div);
-            });
-
-            // Control visibility of add nickname input/button
-            const newNicknameInput = document.getElementById('new-nickname-input');
-            const addNicknameButton = document.getElementById('add-nickname-button');
-            const nicknameAddSection = document.getElementById('nickname-add-section'); // New ID for the container
-
-            if (nicknames.length > 0) {
-                // If a nickname already exists, hide the add section
-                nicknameAddSection.classList.add('hidden');
-            } else {
-                // If no nickname exists, show the add section
-                nicknameAddSection.classList.remove('hidden');
-            }
-
-            document.getElementById('nickname-modal').classList.remove('hidden'); // Show the modal
-        });
-
-        // Event listener to close the nickname modal
-        document.getElementById('close-nickname-modal').addEventListener('click', () => {
-            document.getElementById('nickname-modal').classList.add('hidden');
-        });
-
-        // Event listener to add a new nickname
-        document.getElementById('add-nickname-button').addEventListener('click', async () => {
-            const newNick = document.getElementById('new-nickname-input').value.trim();
-            if (newNick && userId) {
-                // Check if nickname already exists (should be handled by hiding UI, but good for robustness)
-                if (nicknames.length > 0) { // If a nickname already exists, prevent adding more
-                    document.getElementById('message-box-content').textContent = 'Nickname တစ်ခုသာ ထည့်သွင်းနိုင်ပါသည်။';
-                    document.getElementById('message-box').classList.remove('hidden');
-                    return;
-                }
-                
-                try {
-                    // Use simplified path for nicknames collection
-                    const docRef = await addDoc(collection(db, `users/${userId}/nicknames`), { name: newNick });
-                    nicknames.push({ id: docRef.id, name: newNick }); // Add to local list
-                    document.getElementById('new-nickname-input').value = ''; // Clear input
-                    selectNickname(newNick); // Select the newly added nickname
-                    document.getElementById('nickname-modal').classList.add('hidden'); // Close modal
-                    
-                    // Hide the add nickname section immediately after adding
-                    document.getElementById('nickname-add-section').classList.add('hidden');
-                } catch (error) {
-                    console.error("Error adding nickname:", error);
-                    document.getElementById('message-box-content').textContent = `Nickname ထည့်ရာတွင် ပြဿနာရှိပါသည်: ${error.message}`;
-                    document.getElementById('message-box').classList.remove('hidden');
-                }
-            } else {
-                document.getElementById('message-box-content').textContent = 'Nickname ထည့်သွင်းပါ။';
-                document.getElementById('message-box').classList.remove('hidden');
-            }
-        });
-
-        // Function to select a nickname
-        function selectNickname(nick) {
-            currentNickname = nick;
-            updateNicknameDisplay(); // Update display
-            document.getElementById('nickname-modal').classList.add('hidden'); // Close modal
-            updateUI(); // Update UI based on selected nickname (e.g., admin view button visibility)
-        }
-
-        // Update the displayed selected nickname text
-        function updateNicknameDisplay() {
-            document.getElementById('selected-nickname-display').textContent = currentNickname ? `Nickname: ${currentNickname}` : 'Nickname ရွေးပါ';
-        }
-
-        // Update overall UI elements and trigger data load based on current state
-        function updateUI() {
-            isAdmin = (currentNickname === 'MMH'); // Check if current user is admin
-            const adminButton = document.getElementById('admin-view-btn');
-
-            if (isAdmin) {
-                adminButton.classList.remove('hidden'); // Show admin button if admin
-            } else {
-                adminButton.classList.add('hidden'); // Hide admin button otherwise
-            }
-
-            // Always load sales records for the current view (main or admin)
-            if (document.getElementById('admin-page-view').classList.contains('flex')) {
-                // If admin page is active, ensure admin sales are loaded
-                loadAdminSalesRecords();
-            } else {
-                // Otherwise, load main sales
-                loadSalesRecords();
-            }
-            // Update main sales list header
-            document.getElementById('sales-list-header').textContent = `အရောင်းစာရင်း (${formatDate(currentSelectedDate)})`;
-        }
-
-        // Unsubscribe function for real-time listener to prevent memory leaks
-        let unsubscribeSalesRecords = null;
-        let unsubscribeAdminSalesRecords = null;
-
-        // Load Sales Records from Firestore for the main view
-        function loadSalesRecords() {
-            if (unsubscribeSalesRecords) {
-                unsubscribeSalesRecords(); // Unsubscribe from previous listener
-            }
-
-            if (!userId || !currentNickname) {
-                document.getElementById('sales-records-list').innerHTML = '<p class="text-center text-gray-500 mt-4">Nickname ကိုရွေးချယ်ပါ</p>';
-                document.getElementById('total-bet-amount').textContent = `စုစုပေါင်း: 0`;
-                return;
-            }
-
-            const dateString = formatDate(currentSelectedDate);
-            // Use simplified path for sales records
-            const recordsCollectionRef = collection(db, `salesRecords/${currentNickname}/dates/${dateString}/entries`);
-
-            unsubscribeSalesRecords = onSnapshot(recordsCollectionRef, (snapshot) => {
-                salesRecords = [];
-                let totalBetAmount = 0;
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    salesRecords.push({ id: doc.id, ...data });
-                    totalBetAmount += parseFloat(data.betAmount || 0); // Sum up the stored betAmount
-                });
-                salesRecords.sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
-                displaySalesRecords(totalBetAmount, 'sales-records-list', 'total-bet-amount');
-            }, (error) => {
-                console.error("Error fetching sales records:", error);
-                document.getElementById('message-box-content').textContent = `အရောင်းစာရင်းများတင်ရာတွင် ပြဿနာရှိပါသည်: ${error.message}`;
-                document.getElementById('message-box').classList.remove('hidden');
-            });
-        }
-
-        // Load Sales Records from Firestore for the admin view
-        function loadAdminSalesRecords() {
-            if (unsubscribeAdminSalesRecords) {
-                unsubscribeAdminSalesRecords(); // Unsubscribe from previous listener
-            }
-
-            if (!userId || !adminViewNickname) {
-                document.getElementById('admin-sales-records-list').innerHTML = '<p class="text-center text-gray-500 mt-4">ကြည့်ရှုရန် Nickname ကိုရွေးချယ်ပါ</p>';
-                document.getElementById('admin-total-bet-amount').textContent = `စုစုပေါင်း: 0`;
-                return;
-            }
-
-            const dateString = formatDate(currentSelectedDate);
-            // Use simplified path for sales records
-            const recordsCollectionRef = collection(db, `salesRecords/${adminViewNickname}/dates/${dateString}/entries`);
-
-            unsubscribeAdminSalesRecords = onSnapshot(recordsCollectionRef, (snapshot) => {
-                salesRecords = []; // Reusing salesRecords array, but it's for the current view
-                let totalBetAmount = 0;
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    salesRecords.push({ id: doc.id, ...data });
-                    totalBetAmount += parseFloat(data.betAmount || 0); // Sum up the stored betAmount
-                });
-                salesRecords.sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
-                displaySalesRecords(totalBetAmount, 'admin-sales-records-list', 'admin-total-bet-amount');
-                document.getElementById('admin-sales-list-header').textContent = `${adminViewNickname} ၏ အရောင်းစာရင်း (${formatDate(currentSelectedDate)})`;
-            }, (error) => {
-                console.error("Error fetching admin sales records:", error);
-                document.getElementById('message-box-content').textContent = `Admin အရောင်းစာရင်းများတင်ရာတွင် ပြဿနာရှိပါသည်: ${error.message}`;
-                document.getElementById('message-box').classList.remove('hidden');
-            });
-        }
-
-
-        // Display sales records in the UI (reusable function)
-        function displaySalesRecords(totalBetAmount, listElementId, totalElementId) {
-            const listElement = document.getElementById(listElementId);
-            listElement.innerHTML = ''; // Clear existing records
-
-            if (salesRecords.length === 0) {
-                listElement.innerHTML = '<p class="text-center text-gray-500 mt-4">ယနေ့အတွက် အရောင်းမှတ်တမ်းများ မရှိသေးပါ</p>';
-            } else {
-                salesRecords.forEach(record => {
-                    // Display the 'displayString' which holds the original input line
-                    const displayContent = record.displayString || 'N/A'; // Always use displayString
-                    const div = document.createElement('div');
-                    div.className = 'record-item'; // Apply styling
-                    div.innerHTML = `
-                        <div class="flex flex-col">
-                            <span class="text-lg font-semibold text-blue-700 whitespace-pre-wrap">${displayContent}</span>
-                            <span class="text-sm text-gray-600">${record.betAmount ? record.betAmount.toLocaleString() : 'N/A'}</span>
-                        </div>
-                        <button class="text-red-500 hover:text-red-700 p-2 rounded-full transition-colors" onclick="deleteRecord('${record.id}')">
-                            <!-- Trash icon SVG -->
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                        </button>
-                    `;
-                    listElement.appendChild(div);
-                });
-            }
-            // Update total bet amount display
-            document.getElementById(totalElementId).textContent = `စုစုပေါင်း: ${totalBetAmount.toLocaleString()}`;
-        }
-
-        // Helper function to add a single record to Firestore
-        async function addRecordToFirestore(numbers, betAmount, isReverse, nickname, date, displayString) {
-            try {
-                const dateString = formatDate(date);
-                // Ensure the nickname document exists at the top level of salesRecords
-                // This makes the nickname discoverable for admin view.
-                await setDoc(doc(db, `salesRecords/${nickname}`), { lastActive: new Date() }, { merge: true });
-
-                // Use simplified path for sales records
-                await addDoc(collection(db, `salesRecords/${nickname}/dates/${dateString}/entries`), {
-                    betAmount: betAmount,
-                    numbers: numbers, // This stores a parsed representation (e.g., "12.13", "1_TOP", "ALL_KHWAY")
-                    isReverse: isReverse, // This flag might not be strictly needed for combined entries if displayString is used
-                    timestamp: new Date(),
-                    displayString: displayString // Stores the original input string for exact display
-                });
-                return true; // Indicate success
-            } catch (error) {
-                console.error(`Error adding record ${displayString}:`, error);
-                return false; // Indicate failure
-            }
-        }
-
-        // Function to process input from the textarea (single or multiple lines)
-        // This function now processes all lines in the textarea and saves them as a single record.
-        async function processInputAndAddRecords() {
-            // Prevent adding from admin view
-            if (document.getElementById('admin-page-view').classList.contains('flex')) {
-                document.getElementById('message-box-content').textContent = 'Admin View တွင် မှတ်တမ်းအသစ်ထည့်သွင်း၍ မရပါ။ ပင်မစာမျက်နှာသို့ ပြန်သွားပါ။';
-                document.getElementById('message-box').classList.remove('hidden');
-                return;
-            }
-
-            if (!currentNickname) {
-                document.getElementById('message-box-content').textContent = 'အရောင်းမှတ်တမ်းမထည့်မီ Nickname ကိုရွေးချယ်ပါ။';
-                document.getElementById('message-box').classList.remove('hidden');
-                return;
-            }
-
-            const recordInput = document.getElementById('record-input');
-            const fullInputValue = recordInput.value.trim(); // Get the entire content of the textarea
-
-            if (!fullInputValue) {
-                document.getElementById('message-box-content').textContent = 'ထိုးကြေးပမာဏနှင့် နံပါတ်များကို ထည့်သွင်းပါ။ (ဥပမာ: 12=200 သို့မဟုတ် 12R100)';
-                document.getElementById('message-box').classList.remove('hidden');
-                return;
-            }
-
-            // Show confirmation box before processing
-            const confirmProcess = await showConfirmBox('မှတ်တမ်းများကို ထည့်သွင်းရန် သေချာပါသလား။');
-            if (!confirmProcess) {
-                return; // If user cancels, do nothing
-            }
-
-            const lines = fullInputValue.split('\n');
-            let totalBetAmountForBatch = 0;
-            let hasReverseInBatch = false; // True if any line in the batch is a reverse bet
-            const invalidLines = []; // To store lines with format errors
-
-            for (const line of lines) {
-                const trimmedLine = line.trim();
-                if (!trimmedLine) continue; // Skip empty lines
-
-                let amountForThisLine = 0;
-                let isReverseForThisLine = false;
-                let lineIsValid = false;
-
-                // Regex for Direct/Reverse (single or multiple numbers separated by . or /)
-                // Examples: 12=100, 12R100, 12.13.14.15R2000, 12/65=400
-                // Handles optional spaces around numbers, operators.
-                let match = trimmedLine.match(/^\s*(\d+(?:[./]\s*\d+)*)\s*([=R])\s*(\d+)\s*$/i);
-                if (match) {
-                    const numbersPart = match[1].replace(/\s/g, ''); // Remove spaces from numbers part
-                    const operator = match[2];
-                    const amountPerNumber = parseFloat(match[3]);
-                    const individualNumbersCount = numbersPart.split(/[./]/).length;
-                    isReverseForThisLine = (operator.toUpperCase() === 'R');
-
-                    if (isNaN(amountPerNumber) || amountPerNumber <= 0) {
-                        // Invalid amount, will be caught by lineIsValid check
-                    } else {
-                        if (isReverseForThisLine) {
-                            amountForThisLine = amountPerNumber * individualNumbersCount * 2; // Each number in reverse implies two permutations
-                        } else {
-                            amountForThisLine = amountPerNumber * individualNumbersCount;
-                        }
-                        lineIsValid = true;
-                    }
-                }
-
-                if (!lineIsValid) { // If not a direct/reverse bet, check other types
-                    // Regex for ထိပ် (Top) bet
-                    // Examples: 1ထိပ်100, 1 ထိပ် 100, 1 ထိပ်=100
-                    match = trimmedLine.match(/^\s*(\d+)\s*ထိပ်\s*(?:[=R])?\s*(\d+)\s*$/i);
-                    if (match) {
-                        const amountPerNumber = parseFloat(match[2]);
-                        if (isNaN(amountPerNumber) || amountPerNumber <= 0) {
-                            // Invalid amount
-                        } else {
-                            amountForThisLine = amountPerNumber * 10; // 10 numbers for "ထိပ်" (0-9)
-                            lineIsValid = true;
-                        }
-                    }
-                }
-
-                if (!lineIsValid) { // If not a direct/reverse or top bet, check bottom
-                    // Regex for ပိတ် (Bottom) bet
-                    // Examples: 1ပိတ်100, 1 ပိတ် 100, 1 ပိတ်=100
-                    match = trimmedLine.match(/^\s*(\d+)\s*ပိတ်\s*(?:[=R])?\s*(\d+)\s*$/i);
-                    if (match) {
-                        const amountPerNumber = parseFloat(match[2]);
-                        if (isNaN(amountPerNumber) || amountPerNumber <= 0) {
-                            // Invalid amount
-                        } else {
-                            amountForThisLine = amountPerNumber * 10; // 10 numbers for "ပိတ်" (0-9)
-                            lineIsValid = true;
-                        }
-                    }
-                }
-
-                if (!lineIsValid) { // If not any of the above, check 'ခွေ'
-                    // Regex for ခွေ (All/Full) bet
-                    // Examples: 123456789ခွေ100, ခွေ=100, ခွေ100
-                    // (\d*) allows for optional digits before 'ခွေ', but we treat 'ခွေ' as all 100 numbers.
-                    match = trimmedLine.match(/^\s*(\d*)\s*ခွေ\s*(?:[=R])?\s*(\d+)\s*$/i);
-                    if (match) {
-                        const amountPerNumber = parseFloat(match[2]);
-                        if (isNaN(amountPerNumber) || amountPerNumber <= 0) {
-                            // Invalid amount
-                        } else {
-                            amountForThisLine = amountPerNumber * 100; // 100 numbers (00-99) for "ခွေ"
-                            lineIsValid = true;
-                        }
-                    }
-                }
-
-                // Special handling for "X ပါ YYY" and "X ပါတ် YYY"
-                // Examples: 1ပါ100, 1 ပါတ် 100
-                // This implies 19 numbers each at the specified amount.
-                if (!lineIsValid) {
-                    match = trimmedLine.match(/^\s*(\d+)\s*(?:ပါ|ပါတ်)\s*(?:[=R])?\s*(\d+)\s*$/i);
-                    if (match) {
-                        const amountPerNumber = parseFloat(match[2]);
-                        if (isNaN(amountPerNumber) || amountPerNumber <= 0) {
-                            // Invalid amount
-                        } else {
-                            amountForThisLine = amountPerNumber * 19; // 19 numbers for "ပါ/ပါတ်" bet
-                            lineIsValid = true;
-                        }
-                    }
-                }
-
-
-                if (lineIsValid && amountForThisLine > 0) {
-                    totalBetAmountForBatch += amountForThisLine;
-                    if (isReverseForThisLine) { // Check if this specific line was a reverse bet
-                        hasReverseInBatch = true;
-                    }
-                } else {
-                    invalidLines.push(trimmedLine);
-                }
-            }
-
-            if (invalidLines.length > 0) {
-                document.getElementById('message-box-content').textContent = `အောက်ပါလိုင်းများတွင် ထည့်သွင်းမှုပုံစံ မှားယွင်းနေပါသည်။ ပြန်လည်စစ်ဆေးပါ။\n\n${invalidLines.join('\n')}`;
-                document.getElementById('message-box').classList.remove('hidden');
-                // Do NOT clear textarea so user can correct
-                return;
-            }
-
-            if (totalBetAmountForBatch === 0) {
-                document.getElementById('message-box-content').textContent = 'ထည့်သွင်းရန် မှန်ကန်သော မှတ်တမ်းများ မတွေ့ပါ။';
-                document.getElementById('message-box').classList.remove('hidden');
-                return;
-            }
-
-            // Now, add a single record to Firestore representing the entire batch
-            // The 'numbers' field can be a placeholder as the actual numbers are in displayString
-            const success = await addRecordToFirestore(
-                "Batch Entry", // A generic placeholder for 'numbers' field for combined entries
-                totalBetAmountForBatch,
-                hasReverseInBatch, // Store if any line in the batch was a reverse bet
-                currentNickname,
-                currentSelectedDate,
-                fullInputValue // Store the entire original input for display
-            );
-
-            let message;
-            if (success) {
-                message = `မှတ်တမ်းများ အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။ စုစုပေါင်းထိုးကြေး: ${totalBetAmountForBatch.toLocaleString()}။`;
-                recordInput.value = ''; // Clear textarea on success
-            } else {
-                message = `မှတ်တမ်းထည့်သွင်းရာတွင် ပြဿနာရှိပါသည်။ ကျေးဇူးပြု၍ ပြန်လည်စစ်ဆေးပါ။`;
-            }
-            document.getElementById('message-box-content').textContent = message;
-            document.getElementById('message-box').classList.remove('hidden');
-        }
-
-        // Function to delete a sales record
-        async function deleteRecord(recordId) {
-            // Determine which nickname's record to delete based on active view
-            const targetNickname = document.getElementById('admin-page-view').classList.contains('flex') ? adminViewNickname : currentNickname;
-
-            if (!targetNickname) {
-                document.getElementById('message-box-content').textContent = 'မှတ်တမ်းဖျက်ရန် Nickname ကိုရွေးချယ်ပါ။';
-                document.getElementById('message-box').classList.remove('hidden');
-                return;
-            }
-
-            // Show confirmation box before deleting
-            const confirmDelete = await showConfirmBox('မှတ်တမ်းကို ဖျက်ရန် သေချာပါသလား။');
-            if (!confirmDelete) {
-                return; // If user cancels, do nothing
-            }
-
-            try {
-                const dateString = formatDate(currentSelectedDate);
-                // Use simplified path for sales records
-                await deleteDoc(doc(db, `salesRecords/${targetNickname}/dates/${dateString}/entries`, recordId));
-                console.log("Record deleted successfully.");
-            } catch (error) {
-                console.error("Error deleting record:", error);
-                document.getElementById('message-box-content').textContent = `မှတ်တမ်းဖျက်ရာတွင် ပြဿနာရှိပါသည်: ${error.message}`;
-                document.getElementById('message-box').classList.remove('hidden');
-            }
-        }
-
-        // Event listener for the Admin View button (to switch to admin page)
-        document.getElementById('admin-view-btn').addEventListener('click', async () => {
-            if (!isAdmin) return; // Ensure only admin can access this
-
-            document.getElementById('main-app-view').classList.add('hidden');
-            document.getElementById('admin-page-view').classList.remove('hidden');
-            document.getElementById('admin-page-view').classList.add('flex'); // Ensure it's flex for layout
-
-            adminViewNickname = ''; // Reset selected admin nickname when entering the page
-            document.getElementById('admin-sales-list-header').textContent = ''; // Clear header
-            document.getElementById('admin-sales-records-list').innerHTML = '<p class="text-center text-gray-500 mt-4">ကြည့်ရှုရန် Nickname ကိုရွေးချယ်ပါ</p>';
-            document.getElementById('admin-total-bet-amount').textContent = `စုစုပေါင်း: 0`;
-
-            populateAdminNicknamesPage(); // Populate the nickname list on the admin page
-        });
-
-        // Function to populate the nickname list on the admin page
-        async function populateAdminNicknamesPage() {
-            document.getElementById('admin-nickname-list-page').innerHTML = ''; // Clear previous list
-
-            try {
-                const allNicknamesToShow = new Set();
-
-                // 1. Fetch nicknames that have public sales records (from anyone)
-                // Now, `salesRecords` should contain documents for each nickname due to `setDoc` in `addRecordToFirestore`
-                const salesRecordsCollectionRef = collection(db, `salesRecords`);
-                const salesQuerySnapshot = await getDocs(salesRecordsCollectionRef);
-                salesQuerySnapshot.forEach(doc => {
-                    allNicknamesToShow.add(doc.id); // doc.id here represents a nickname document ID
-                });
-
-                // 2. Fetch nicknames created by the current user (MMH) - this is less critical now but good for completeness
-                const userNicknamesCollectionRef = collection(db, `users/${userId}/nicknames`);
-                const userNicknamesQuerySnapshot = await getDocs(userNicknamesCollectionRef);
-                userNicknamesQuerySnapshot.forEach(doc => {
-                    allNicknamesToShow.add(doc.data().name); // Add the 'name' field of the nickname document
-                });
-
-                const sortedNicknames = Array.from(allNicknamesToShow).sort(); // Sort alphabetically
-
-                if (sortedNicknames.length === 0) {
-                    document.getElementById('admin-nickname-list-page').innerHTML = '<p class="text-center text-gray-500 mt-4">ကြည့်ရှုရန် Nickname မရှိသေးပါ</p>';
-                } else {
-                    sortedNicknames.forEach(nick => {
-                        if (nick === 'MMH') return; // Don't show 'MMH' (the admin's own nickname) in the list to view
-                        const div = document.createElement('div');
-                        div.className = `admin-nickname-item ${nick === adminViewNickname ? 'selected' : ''}`;
-                        div.textContent = nick;
-                        div.onclick = () => selectAdminViewNickname(nick); // Set click handler
-                        document.getElementById('admin-nickname-list-page').appendChild(div);
-                    });
-                }
-            } catch (error) {
-                console.error("Error fetching nicknames for admin view page:", error);
-                document.getElementById('message-box-content').textContent = `Admin ကြည့်ရန် Nickname များတင်ရာတွင် ပြဿနာရှိပါသည်: ${error.message}`;
-                document.getElementById('message-box').classList.remove('hidden');
-            }
-        }
-
-        // Function to select a nickname for admin view
-        function selectAdminViewNickname(nick) {
-            adminViewNickname = nick; // Set the nickname to be viewed by admin
-            // Update selected state in the list
-            Array.from(document.querySelectorAll('#admin-nickname-list-page .admin-nickname-item')).forEach(item => {
-                if (item.textContent === nick) {
-                    item.classList.add('selected');
-                } else {
-                    item.classList.remove('selected');
-                }
-            });
-            loadAdminSalesRecords(); // Load records for the newly selected nickname
-        }
-
-        // Function to show aggregated sales across all nicknames for the current date
-        async function showAggregatedSales() {
-            if (!userId) {
-                document.getElementById('message-box-content').textContent = 'အကောင့်ဝင်ရောက်ရန်စောင့်ဆိုင်းနေပါသည်...';
-                document.getElementById('message-box').classList.remove('hidden');
-                return;
-            }
-
-            document.getElementById('aggregated-sales-list').innerHTML = '<p class="text-center text-gray-500 mt-4">စာရင်းများ တွက်ချက်နေသည်...</p>';
-            document.getElementById('aggregated-total-amount').textContent = `Total = 0`;
-            document.getElementById('aggregated-sales-date').textContent = formatDate(currentSelectedDate);
-            document.getElementById('aggregated-sales-modal').classList.remove('hidden');
-
-            let aggregatedBets = new Map();
-            for (let i = 0; i < 100; i++) {
-                aggregatedBets.set(String(i).padStart(2, '0'), 0);
-            }
-
-            let overallTotal = 0;
-            const dateString = formatDate(currentSelectedDate);
-            let uniqueNumbersCount = 0; // To count unique numbers with sales
-
-            try {
-                // Fetch ALL nickname documents from the top-level salesRecords collection
-                const nicknamesCollectionRef = collection(db, `salesRecords`);
-                const nicknamesSnapshot = await getDocs(nicknamesCollectionRef);
-
-                for (const nicknameDoc of nicknamesSnapshot.docs) {
-                    const nickname = nicknameDoc.id; // The document ID is the nickname
-                    const recordsCollectionRef = collection(db, `salesRecords/${nickname}/dates/${dateString}/entries`);
-                    const salesSnapshot = await getDocs(recordsCollectionRef);
-
-                    salesSnapshot.forEach((recordDoc) => {
-                        const recordData = recordDoc.data();
-                        const displayString = recordData.displayString; // The original input string for the batch
-                        const lines = displayString.split('\n');
-
-                        for (const line of lines) {
-                            const trimmedLine = line.trim();
-                            if (!trimmedLine) continue;
-
-                            let amountPerNumber = 0;
-                            let numbersAffected = new Set(); // Use a Set to avoid duplicate numbers (e.g., 11R)
-
-                            // Regex for Direct/Reverse (single or multiple numbers separated by . or /)
-                            let match = trimmedLine.match(/^\s*(\d+(?:[./]\s*\d+)*)\s*([=R])\s*(\d+)\s*$/i);
-                            if (match) {
-                                const numbersPart = match[1].replace(/\s/g, '');
-                                const operator = match[2];
-                                amountPerNumber = parseFloat(match[3]);
-                                const individualNumbers = numbersPart.split(/[./]/);
-                                const isReverse = (operator.toUpperCase() === 'R');
-
-                                for (const numStr of individualNumbers) {
-                                    const formattedNum = numStr.padStart(2, '0');
-                                    numbersAffected.add(formattedNum);
-                                    if (isReverse) {
-                                        const reversedNum = formattedNum[1] + formattedNum[0];
-                                        if (formattedNum !== reversedNum) { // Only add if not a double digit (e.g., 11, 22)
-                                            numbersAffected.add(reversedNum); // Add reversed number
-                                        }
-                                    }
-                                }
-                            } else {
-                                // Regex for ထိပ် (Top) bet
-                                match = trimmedLine.match(/^\s*(\d+)\s*ထိပ်\s*(?:[=R])?\s*(\d+)\s*$/i);
-                                if (match) {
-                                    const topDigit = match[1];
-                                    amountPerNumber = parseFloat(match[2]);
-                                    for (let i = 0; i <= 9; i++) {
-                                        numbersAffected.add(`${topDigit}${i}`);
-                                    }
-                                } else {
-                                    // Regex for ပိတ် (Bottom) bet
-                                    match = trimmedLine.match(/^\s*(\d+)\s*ပိတ်\s*(?:[=R])?\s*(\d+)\s*$/i);
-                                    if (match) {
-                                        const bottomDigit = match[1];
-                                        amountPerNumber = parseFloat(match[2]);
-                                        for (let i = 0; i <= 9; i++) {
-                                            numbersAffected.add(`${i}${bottomDigit}`);
-                                        }
-                                    } else {
-                                        // Regex for ခွေ (All/Full) bet
-                                        match = trimmedLine.match(/^\s*(\d*)\s*ခွေ\s*(?:[=R])?\s*(\d+)\s*$/i);
-                                        if (match) {
-                                            amountPerNumber = parseFloat(match[2]);
-                                            for (let i = 0; i <= 99; i++) {
-                                                numbersAffected.add(String(i).padStart(2, '0'));
-                                            }
-                                        } else {
-                                            // Special handling for "X ပါ YYY" and "X ပါတ် YYY"
-                                            match = trimmedLine.match(/^\s*(\d+)\s*(?:ပါ|ပါတ်)\s*(?:[=R])?\s*(\d+)\s*$/i);
-                                            if (match) {
-                                                const digit = match[1];
-                                                amountPerNumber = parseFloat(match[2]);
-                                                for (let i = 0; i <= 99; i++) {
-                                                    const numStr = String(i).padStart(2, '0');
-                                                    if (numStr.includes(digit)) {
-                                                        numbersAffected.add(numStr);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Add amounts to aggregatedBets for each unique number affected by this line
-                            if (amountPerNumber > 0 && numbersAffected.size > 0) {
-                                for (const num of numbersAffected) {
-                                    const formattedNum = num.padStart(2, '0'); // Ensure 2 digits
-                                    aggregatedBets.set(formattedNum, (aggregatedBets.get(formattedNum) || 0) + amountPerNumber);
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // Populate the modal with aggregated data
-                const aggregatedListElement = document.getElementById('aggregated-sales-list');
-                aggregatedListElement.innerHTML = ''; // Clear previous content
-                overallTotal = 0;
-                uniqueNumbersCount = 0; // Reset count for display
-
-                // Sort numbers from 00 to 99
-                const sortedNumbers = Array.from(aggregatedBets.keys()).sort();
-
-                sortedNumbers.forEach(num => {
-                    const amount = aggregatedBets.get(num);
-                    if (amount > 0) { // Only show numbers with actual bets
-                        const div = document.createElement('div');
-                        div.className = 'aggregated-list-item text-gray-800';
-                        div.innerHTML = `
-                            <span class="font-mono text-lg">${num} =</span>
-                            <span class="font-semibold text-lg">${amount.toLocaleString()}</span>
-                        `;
-                        aggregatedListElement.appendChild(div);
-                        overallTotal += amount;
-                        uniqueNumbersCount++; // Increment count of unique numbers with sales
-                    }
-                });
-
-                if (overallTotal === 0) {
-                    aggregatedListElement.innerHTML = '<p class="text-center text-gray-500 mt-4">ယနေ့အတွက် စုပေါင်းအရောင်းမှတ်တမ်းများ မရှိသေးပါ</p>';
-                }
-
-                document.getElementById('aggregated-total-amount').textContent = `Total = ${overallTotal.toLocaleString()}`;
-                // Update the modal header with the unique numbers count
-                document.getElementById('aggregated-sales-modal-title').textContent = `စုစုပေါင်း: ဂဏန်းအားလုံးရောင်းစာရင်း (${uniqueNumbersCount}) ကျပ်`;
-
-
-            } catch (error) {
-                console.error("Error fetching aggregated sales records:", error);
-                document.getElementById('message-box-content').textContent = `စုပေါင်းအရောင်းစာရင်းများတင်ရာတွင် ပြဿနာရှိပါသည်: ${error.message}`;
-                document.getElementById('message-box').classList.remove('hidden');
-            }
-        }
-
-        // Function to copy aggregated sales data to clipboard
-        function copyAggregatedSales() {
-            const listItems = document.querySelectorAll('#aggregated-sales-list .aggregated-list-item');
-            let textToCopy = '';
-
-            listItems.forEach(item => {
-                const number = item.querySelector('span:first-child').textContent.replace(' =', '').trim();
-                const amount = item.querySelector('span:last-child').textContent.trim();
-                textToCopy += `${number} = ${amount}\n`;
-            });
-
-            const totalAmount = document.getElementById('aggregated-total-amount').textContent;
-            textToCopy += `${totalAmount}\n`; // Add the total amount
-
-            // Create a temporary textarea to copy text
-            const tempTextArea = document.createElement('textarea');
-            tempTextArea.value = textToCopy;
-            // Make it temporarily visible and selectable, but off-screen
-            tempTextArea.style.position = 'absolute';
-            tempTextArea.style.left = '-9999px';
-            tempTextArea.style.top = '0';
-            tempTextArea.style.width = '1px';
-            tempTextArea.style.height = '1px';
-            tempTextArea.style.opacity = '0';
-            tempTextArea.style.display = 'block'; // Ensure it's not hidden by display: none
-            tempTextArea.style.visibility = 'visible'; // Ensure it's not hidden by visibility: hidden
-
-
-            document.body.appendChild(tempTextArea);
-
-            // Select the text in the textarea
-            tempTextArea.focus(); // Ensure it has focus
-            tempTextArea.select();
-
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    // Show a temporary "Copied!" message
-                    const copyMessage = document.getElementById('copy-message');
-                    copyMessage.textContent = 'ကူးယူပြီးပါပြီ!';
-                    copyMessage.classList.add('show');
-                    setTimeout(() => {
-                        copyMessage.classList.remove('show');
-                    }, 2000); // Hide after 2 seconds
-                } else {
-                    document.getElementById('message-box-content').textContent = 'ကူးယူ၍ မရပါ။ ကျေးဇူးပြု၍ ကိုယ်တိုင် ကူးယူပါ။';
-                    document.getElementById('message-box').classList.remove('hidden');
-                }
-            } catch (err) {
-                console.error('Failed to copy text: ', err);
-                document.getElementById('message-box-content').textContent = `ကူးယူ၍ မရပါ။ ပြဿနာ: ${err.message}`;
-                document.getElementById('message-box').classList.remove('hidden');
-            } finally {
-                document.body.removeChild(tempTextArea);
-            }
-        }
-
-        // Event listener to close the aggregated sales modal
-        document.getElementById('close-aggregated-sales-modal').addEventListener('click', () => {
-            document.getElementById('aggregated-sales-modal').classList.add('hidden');
-        });
-
-
-        // Event listener to go back to the main view from admin page
-        document.getElementById('back-to-main-btn').addEventListener('click', () => {
-            document.getElementById('admin-page-view').classList.add('hidden');
-            document.getElementById('admin-page-view').classList.remove('flex');
-            document.getElementById('main-app-view').classList.remove('hidden');
-            adminViewNickname = ''; // Clear admin view nickname
-            updateUI(); // This will reset the header and reload records for the current user's nickname
-        });
-
-        // Custom Message Box functions (replaces alert())
-        document.getElementById('close-message-box').addEventListener('click', () => {
-            document.getElementById('message-box').classList.add('hidden');
-        });
-
-        // Custom Confirm Box functions (replaces confirm())
-        let confirmResolve; // To store the promise resolver
-        function showConfirmBox(message) {
-            document.getElementById('confirm-box-content').textContent = message;
-            document.getElementById('confirm-box').classList.remove('hidden');
-            return new Promise(resolve => {
-                confirmResolve = resolve; // Store the resolve function
-            });
-        }
-
-        document.getElementById('confirm-yes-btn').addEventListener('click', () => {
-            document.getElementById('confirm-box').classList.add('hidden');
-            confirmResolve(true); // Resolve the promise with true (confirmed)
-        });
-
-        document.getElementById('confirm-no-btn').addEventListener('click', () => {
-            document.getElementById('confirm-box').classList.add('hidden');
-            confirmResolve(false); // Resolve the promise with false (cancelled)
-        });
-
-
-        // Initial setup when the window loads
-        window.onload = () => {
-            displayDate(); // Display the current date
-            // Nicknames and records will be loaded after Firebase authentication state is determined
-        };
-
-        // Expose functions to the global scope so they can be called from HTML event attributes
-        window.changeDate = changeDate;
-        window.deleteRecord = deleteRecord;
-        window.processInputAndAddRecords = processInputAndAddRecords; // Expose the new function
-        window.showConfirmBox = showConfirmBox; // Make confirm box accessible from HTML
-        window.showAggregatedSales = showAggregatedSales; // Expose new aggregated sales function
-        window.copyAggregatedSales = copyAggregatedSales; // Expose new copy function
+        window.__initial_auth_token = ""; // Optional: for custom token authentication
     </script>
 
-    <!-- Main Application Container -->
-    <div id="main-app-view" class="flex-1 flex flex-col p-4 pb-32 max-w-xl mx-auto w-full">
-        <!-- User ID Display -->
-        <div id="user-id-display" class="text-xs text-gray-500 text-right mb-2"></div>
+    <script type="text/babel">
+        // ====================================================================
+        // React Application Start
+        // ====================================================================
 
-        <!-- Header Section: Date Navigation and Nickname Button -->
-        <div class="flex items-center justify-between bg-white p-4 rounded-xl shadow-md mb-4">
-            <!-- Date Navigation Controls -->
-            <div class="flex items-center space-x-2">
-                <button onclick="changeDate(-1)" class="p-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors">
-                    <!-- Left arrow SVG icon -->
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>
-                </button>
-                <span id="current-date" class="text-lg font-semibold text-gray-800"></span>
-                <button onclick="changeDate(1)" class="p-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors">
-                    <!-- Right arrow SVG icon -->
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
-                </button>
-            </div>
+        // Helper function to format date to YYYY-MM-DD
+        const formatDate = (date) => {
+          const d = new Date(date);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
 
-            <!-- Nickname Selection Button -->
-            <button id="nickname-btn" class="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors flex items-center space-x-1">
-                <!-- User icon SVG -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </button>
-        </div>
+        // Helper function to format month to YYYY-MM
+        const formatMonthYear = (date) => {
+          const d = new Date(date);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          return `${year}-${month}`;
+        };
 
-        <!-- Selected Nickname Display and Admin View Button -->
-        <div class="flex items-center justify-between bg-white p-4 rounded-xl shadow-md mb-4">
-            <span id="selected-nickname-display" class="text-md font-medium text-gray-700">Nickname ရွေးပါ</span>
-            <!-- Admin View Button (hidden by default, shown for 'MMH') -->
-            <button id="admin-view-btn" class="hidden px-4 py-2 bg-purple-600 text-white rounded-lg shadow-md hover:bg-purple-700 transition-colors text-sm">
-                Admin View
-            </button>
-        </div>
+        // Helper function to generate permutations for "kway" entries
+        const generateKwayPermutations = (digitsString) => {
+          const uniqueDigits = Array.from(new Set(digitsString.split(''))).sort();
+          const permutations = new Set();
+          if (uniqueDigits.length < 2) return [];
 
-        <!-- Sales Records List Section -->
-        <h2 id="sales-list-header" class="text-xl font-bold text-gray-800 mb-3">အရောင်းစာရင်း (<span id="current-date-header"></span>)</h2>
-        <div id="sales-records-list" class="flex-1 overflow-y-auto mb-4">
-            <!-- Sales records will be dynamically loaded here by JavaScript -->
-            <p class="text-center text-gray-500 mt-4">မှတ်တမ်းများတင်နေသည်...</p>
-        </div>
+          for (let i = 0; i < uniqueDigits.length; i++) {
+            for (let j = 0; j < uniqueDigits.length; j++) {
+              if (i !== j) {
+                permutations.add(`${uniqueDigits[i]}${uniqueDigits[j]}`);
+              }
+            }
+          }
+          return Array.from(permutations);
+        };
 
-        <!-- Total Bet Amount Display -->
-        <div class="bg-white p-4 rounded-xl shadow-md text-right text-lg font-bold text-blue-800 mb-4">
-            <span id="total-bet-amount">စုစုပေါင်း: 0</span>
-        </div>
+        // Helper function to generate numbers for "ဘရိတ်" (Brake) entries
+        const generateBrakeNumbers = (brakeDigit) => {
+          const numbers = new Set();
+          const targetLastDigit = parseInt(brakeDigit);
+          for (let i = 0; i <= 9; i++) {
+            for (let j = 0; j <= 9; j++) {
+              const sum = i + j;
+              if (sum % 10 === targetLastDigit) {
+                numbers.add(`${i}${j}`);
+              }
+            }
+          }
+          return Array.from(numbers).sort();
+        };
 
-        <!-- Bet Amount Input Section (Moved inside main-app-view) -->
-        <div class="w-full bg-white p-4 shadow-lg rounded-xl mt-4">
-            <div class="max-w-xl mx-auto">
-                <div class="flex items-end space-x-3 mb-3">
-                    <textarea id="record-input" placeholder="နံပါတ်=ထိုးကြေး (ဥပမာ: 12=100 သို့မဟုတ် 12R100)&#10;12.13.14.15R2000&#10;24.25.26.27=1000&#10;1ထိပ်100&#10;ခွေ50&#10;1ပါ100" rows="4" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base resize-y"></textarea>
-                    <button onclick="processInputAndAddRecords()" class="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors flex-shrink-0 h-fit">
-                        <!-- Plus icon SVG -->
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        // Re-mapping Lucide React icons to simple inline SVGs
+        const ChevronLeft = ({ size = 20, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m15 18-6-6 6-6"/></svg>;
+        const ChevronRight = ({ size = 20, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>;
+        const Plus = ({ size = 28, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 5v14M5 12h14"/></svg>;
+        const Copy = ({ size = 16, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
+        const Edit = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>;
+        const Trash2 = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>;
+        const CalendarDays = ({ size = 16, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>;
+        const BarChart3 = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>;
+        const X = ({ size = 24, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+        const User = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>;
+        const ArrowLeft = ({ size = 20, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
+        const Loader2 = ({ size = 48, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
+        const Users = ({ size = 18, className = '' }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+
+
+        // Main App Component
+        const App = () => {
+          // --- Firebase States ---
+          const [db, setDb] = React.useState(null);
+          const [auth, setAuth] = React.useState(null);
+          const [userId, setUserId] = React.useState(null); // Firebase Auth UID
+          const [isLoading, setIsLoading] = React.useState(true); // Initial loading state for Firebase init and data fetch
+
+          // --- Data Identifier State (for persistence across sessions) ---
+          const [dataIdentifier, setDataIdentifier] = React.useState(() => {
+              // Initialize from localStorage if available, otherwise empty
+              const savedId = localStorage.getItem('user_data_identifier');
+              return savedId || '';
+          });
+          const [dataIdentifierInput, setDataIdentifierInput] = React.useState(dataIdentifier); // Input field state for data identifier
+          const [idErrorMessage, setIdErrorMessage] = React.useState(''); // Error message for data identifier input
+          const [showDataIdentifierModal, setShowDataIdentifierModal] = React.useState(false); // New state for modal visibility
+
+          // --- Date and Result States ---
+          const [currentDate, setCurrentDate] = React.useState(formatDate(new Date()));
+          const [morningResult, setMorningResult] = React.useState('');
+          const [eveningResult, setEveningResult] = React.useState('');
+          const [localMorningResultInput, setLocalMorningResultInput] = React.useState('');
+          const [localEveningResultInput, setLocalEveningResultInput] = React.useState('');
+
+          // --- Home Page Summary States (Derived from 'entries' and 'results' states) ---
+          const [morningTotalSales, setMorningTotalSales] = React.useState(0);
+          const [eveningTotalSales, setEveningTotalSales] = React.useState(0);
+          const [morningTotalPayout, setMorningTotalPayout] = React.useState(0);
+          const [eveningTotalPayout, setEveningTotalPayout] = React.useState(0);
+          const [morningTotalWinningBetAmountHome, setMorningTotalWinningBetAmountHome] = React.useState(0);
+          const [eveningTotalWinningBetAmountHome, setEveningTotalWinningBetAmountHome] = React.useState(0);
+
+          // --- Entry Management States ---
+          const [entries, setEntries] = React.useState([]); // All entries for the CURRENTLY selected day (fetched from Firestore)
+          const [selectedEntryType, setSelectedEntryType] = React.useState('morning'); // 'morning' or 'evening'
+          const [inputEntry, setInputEntry] = React.useState(''); // Textarea input for new/edited entries
+          const [customerNameInput, setCustomerNameInput] = React.useState(''); // Input for customer name
+          const [isCustomerNameInputFocused, setIsCustomerNameInputFocused] = React.useState(false); // For managing customer name input focus
+
+          // --- UI/Modal Control States ---
+          const [errorMessage, setErrorMessage] = React.useState(''); // Global error message
+          const [showErrorModal, setShowErrorModal] = React.useState(false); // Controls error details modal visibility
+          const [errorDetails, setErrorDetails] = React.useState([]); // Details of parsing errors
+          const [showCustomerEntries, setShowCustomerEntries] = React.useState(false); // Controls individual customer entries detail modal visibility
+          const [selectedCustomerForDetail, setSelectedCustomerForDetail] = React.useState(''); // Customer whose entries are being viewed
+          const [showOverallSummary, setShowOverallSummary] = React.useState(false); // Controls overall numbers summary modal visibility
+          const [showDailySummaryModal, setShowDailySummaryModal] = React.useState(false); // Controls daily profit/loss summary modal visibility
+          const [showDatePicker, setShowDatePicker] = React.useState(false); // Controls date picker visibility
+          const [showConfirmDeleteModal, setShowConfirmDeleteModal] = React.useState(false); // Controls entry deletion confirmation modal
+          const [entryToDeleteId, setEntryToDeleteId] = React.useState(null); // ID of entry to be deleted
+          const [showCopyConfirmation, setShowCopyConfirmation] = React.useState(false); // Controls copy confirmation message visibility
+
+          // --- Monthly Summary States ---
+          const [currentMonth, setCurrentMonth] = React.useState(formatMonthYear(new Date())); // Selected month for monthly summaries
+          const [monthlySummary, setMonthlySummary] = React.useState(null); // Data for overall monthly summary
+          const [showMonthlySummaryModal, setShowMonthlySummaryModal] = React.useState(false); // Controls monthly summary modal visibility
+          const [isMonthlySummaryLoading, setIsMonthlySummaryLoading] = React.useState(false); // Loading state for monthly summary
+
+          // --- Per-Customer Monthly Summary States ---
+          const [perCustomerMonthlySummary, setPerCustomerMonthlySummary] = React.useState(null); // Data for per-customer monthly summary
+          const [showPerCustomerMonthlySummaryModal, setShowPerCustomerMonthlySummaryModal] = React.useState(false); // Controls per-customer monthly summary modal visibility
+          const [isPerCustomerMonthlySummaryLoading, setIsPerCustomerMonthlySummaryLoading] = React.useState(false); // Loading state for per-customer monthly summary
+
+          // --- Customer Management States ---
+          const [showManageCustomersModal, setShowManageCustomersModal] = React.useState(false); // Controls customer management modal visibility
+          const [customers, setCustomers] = React.useState([]); // Master list of customer names from Firestore
+          const [newCustomerName, setNewCustomerName] = React.useState(''); // Input for adding/editing customer names
+          const [editingCustomerId, setEditingCustomerId] = React.useState(null); // ID of customer being edited
+          const [confirmDeleteCustomerModal, setConfirmDeleteCustomerModal] = React.useState(false); // Controls customer deletion confirmation modal
+          const [customerToDeleteId, setCustomerToDeleteId] = React.useState(null); // ID of customer to be deleted
+
+          // --- Navigation state ---
+          const [currentPage, setCurrentPage] = React.useState('home'); // 'home' or 'entries'
+
+          // --- Refs for UI elements ---
+          const inputRef = React.useRef(null); // Ref for the main entry textarea
+          const fixedInputAreaRef = React.useRef(null); // Ref for the fixed bottom input area
+          const [fixedInputAreaHeight, setFixedInputAreaHeight] = React.useState(0); // Height of the fixed input area for dynamic padding
+
+          // Calculate the height of the fixed input area for dynamic padding on the entries page
+          React.useEffect(() => {
+            if (fixedInputAreaRef.current) {
+              setFixedInputAreaHeight(fixedInputAreaRef.current.offsetHeight);
+            }
+          }, [fixedInputAreaRef.current, currentPage]);
+
+          // --- Firebase Initialization and Authentication ---
+          React.useEffect(() => {
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const firebaseConfig = typeof window.__firebase_config !== 'undefined' ? JSON.parse(window.__firebase_config) : {};
+            const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : '';
+
+            if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+              console.error("Firebase config is missing. Data persistence will not work.");
+              setIsLoading(false);
+              return;
+            }
+
+            const app = window.firebase.initializeApp(firebaseConfig);
+            const database = window.firebase.getFirestore(app);
+            const authInstance = window.firebase.getAuth(app);
+            setDb(database);
+            setAuth(authInstance);
+
+            const unsubscribeAuth = window.firebase.onAuthStateChanged(authInstance, async (user) => {
+              if (user) {
+                setUserId(user.uid);
+                console.log("Firebase Auth State Changed: Logged in as", user.uid);
+              } else {
+                console.log("Firebase Auth State Changed: No user, attempting anonymous sign-in or custom token.");
+                try {
+                  if (initialAuthToken) {
+                    await window.firebase.signInWithCustomToken(authInstance, initialAuthToken);
+                  } else {
+                    await window.firebase.signInAnonymously(authInstance);
+                  }
+                } catch (error) {
+                  console.error("Firebase Auth Error:", error);
+                  setErrorMessage("Authentication failed. Please try again.");
+                }
+              }
+              setIsLoading(false);
+            });
+
+            return () => unsubscribeAuth();
+          }, []);
+
+          // --- Effect to manage dataIdentifier persistence in localStorage ---
+          React.useEffect(() => {
+              if (dataIdentifier) {
+                  localStorage.setItem('user_data_identifier', dataIdentifier);
+              } else {
+                  localStorage.removeItem('user_data_identifier');
+              }
+          }, [dataIdentifier]);
+
+          // --- Firestore Data Fetching (Entries, Daily Results, and Master Customers) ---
+          React.useEffect(() => {
+            if (!db || !dataIdentifier) {
+              return;
+            }
+
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
+            const dailyResultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, currentDate);
+            const customersCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`);
+
+            // Fetch Entries
+            const qEntries = window.firebase.query(entriesCollectionRef, window.firebase.where('date', '==', currentDate));
+            const unsubscribeEntries = window.firebase.onSnapshot(qEntries, (snapshot) => {
+              const fetchedEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              setEntries(fetchedEntries);
+              console.log(`Fetched ${fetchedEntries.length} entries for ${currentDate}.`);
+            }, (error) => {
+              console.error("Error fetching entries:", error);
+              setErrorMessage("Error loading entries.");
+            });
+
+            // Fetch Daily Results
+            const unsubscribeResults = window.firebase.onSnapshot(dailyResultDocRef, (docSnap) => {
+              if (docSnap.exists()) {
+                const data = docSnap.data();
+                setMorningResult(data.morningResult || '');
+                setEveningResult(data.eveningResult || '');
+                setLocalMorningResultInput(data.morningResult || '');
+                setLocalEveningResultInput(data.eveningResult || '');
+                console.log(`Fetched results for ${currentDate}: Morning=${data.morningResult}, Evening=${data.eveningResult}`);
+              } else {
+                setMorningResult('');
+                setEveningResult('');
+                setLocalMorningResultInput('');
+                setLocalEveningResultInput('');
+                console.log(`No results found for ${currentDate}.`);
+              }
+            }, (error) => {
+              console.error("Error fetching daily results:", error);
+              setErrorMessage("Error loading daily results.");
+            });
+
+            // Fetch Master Customer List
+            const qCustomers = window.firebase.query(customersCollectionRef);
+            const unsubscribeCustomers = window.firebase.onSnapshot(qCustomers, (snapshot) => {
+                const fetchedCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setCustomers(fetchedCustomers.sort((a, b) => a.name.localeCompare(b.name)));
+                console.log(`Fetched ${fetchedCustomers.length} master customers.`);
+            }, (error) => {
+                console.error("Error fetching master customers:", error);
+                setErrorMessage("Error loading customer list.");
+            });
+
+            return () => {
+              unsubscribeEntries();
+              unsubscribeResults();
+              unsubscribeCustomers();
+              setEntries([]);
+              setMorningResult('');
+              setEveningResult('');
+              setLocalMorningResultInput('');
+              setLocalEveningResultInput('');
+            };
+          }, [db, dataIdentifier, currentDate]);
+
+          // --- Recalculate Home Page Totals (Sales, Payouts, Winning Bet Amounts) ---
+          React.useEffect(() => {
+            const payoutRatePer100 = 8000;
+            const calculateTotals = (entries, result) => {
+              let totalSales = 0;
+              let totalPayout = 0;
+              let totalWinningBetAmount = 0;
+
+              entries.forEach(entry => {
+                totalSales += calculateTotalAmount(entry.parsedEntries);
+                if (result && result.length === 2) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === result) {
+                      totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                      totalWinningBetAmount += parsedEntry.amount;
+                    }
+                  });
+                }
+              });
+              return { totalSales, totalPayout, totalWinningBetAmount };
+            };
+
+            const morningEntries = entries.filter(entry => entry.type === 'morning');
+            const eveningEntries = entries.filter(entry => entry.type === 'evening');
+
+            const morningTotals = calculateTotals(morningEntries, morningResult);
+            const eveningTotals = calculateTotals(eveningEntries, eveningResult);
+
+            setMorningTotalSales(morningTotals.totalSales);
+            setMorningTotalPayout(morningTotals.totalPayout);
+            setMorningTotalWinningBetAmountHome(morningTotals.totalWinningBetAmount);
+
+            setEveningTotalSales(eveningTotals.totalSales);
+            setEveningTotalPayout(eveningTotals.totalPayout);
+            setEveningTotalWinningBetAmountHome(eveningTotals.totalWinningBetAmount);
+
+          }, [entries, morningResult, eveningResult]);
+
+          // --- Helper Function to Calculate Total Amount for Parsed Entries ---
+          const calculateTotalAmount = React.useCallback((parsedEntries) => {
+            if (!Array.isArray(parsedEntries)) return 0;
+            return parsedEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+          }, []);
+
+          // --- Calculate Daily Summaries Per Customer (for Entries page) ---
+          const calculateCustomerDailySummaries = React.useCallback((entries, morningResult, eveningResult, selectedEntryType) => {
+            const grouped = {};
+            const payoutRatePer100 = 8000;
+            const commissionRate = 0.15;
+            const currentWinningResult = selectedEntryType === 'morning' ? morningResult : eveningResult;
+
+            entries.forEach(entry => {
+              if (entry.type !== selectedEntryType) return;
+
+              if (!grouped[entry.customerName]) {
+                grouped[entry.customerName] = {
+                  totalSales: 0, totalPayout: 0, totalCommission: 0, netProfitLoss: 0, entries: [], winningNumber: null, winningBetAmount: 0
+                };
+              }
+              grouped[entry.customerName].totalSales += calculateTotalAmount(entry.parsedEntries);
+
+              if (currentWinningResult && currentWinningResult.length === 2) {
+                entry.parsedEntries.forEach(parsedEntry => {
+                  if (parsedEntry.number === currentWinningResult) {
+                    grouped[entry.customerName].totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                    grouped[entry.customerName].winningNumber = currentWinningResult;
+                    grouped[entry.customerName].winningBetAmount += parsedEntry.amount;
+                  }
+                });
+              }
+              grouped[entry.customerName].entries.push(entry);
+            });
+
+            Object.keys(grouped).forEach(customerName => {
+              const customerData = grouped[customerName];
+              customerData.totalCommission = customerData.totalSales * commissionRate;
+              customerData.netProfitLoss = customerData.totalSales - customerData.totalCommission - customerData.totalPayout;
+            });
+            return grouped;
+          }, [calculateTotalAmount, morningResult, eveningResult]);
+
+          const customerDailySummaries = calculateCustomerDailySummaries(entries, morningResult, eveningResult, selectedEntryType);
+
+          // --- Calculate Overall Numbers Summary (for Entries page modal) ---
+          const getOverallNumbersSummary = React.useCallback(() => {
+            const summary = {};
+            const filteredEntries = entries.filter(entry => entry.type === selectedEntryType);
+            filteredEntries.forEach(entry => {
+              if (Array.isArray(entry.parsedEntries)) {
+                entry.parsedEntries.forEach(parsedEntry => {
+                  const num = parsedEntry.number;
+                  const amount = parsedEntry.amount;
+                  summary[num] = (summary[num] || 0) + amount;
+                });
+              }
+            });
+
+            const summaryArray = [];
+            for (let i = 0; i <= 99; i++) {
+                const formattedNumber = String(i).padStart(2, '0');
+                if (summary[formattedNumber] !== undefined && summary[formattedNumber] > 0) {
+                    summaryArray.push(`${formattedNumber} = ${summary[formattedNumber]}`);
+                }
+            }
+
+            const totalOverallAmount = Object.values(summary).reduce((sum, amount) => sum + amount, 0);
+            const uniqueNumbersCount = summaryArray.length;
+            return { summaryArray, totalOverallAmount, uniqueNumbersCount };
+          }, [entries, selectedEntryType]);
+
+          const { summaryArray, totalOverallAmount, uniqueNumbersCount } = getOverallNumbersSummary();
+
+          // --- Calculate Daily Profit/Loss Summary (for Home page modal) ---
+          const calculateDailySummary = React.useCallback(() => {
+            const allDailyEntries = entries;
+            const totalSales = allDailyEntries.reduce((sum, entry) => sum + calculateTotalAmount(entry.parsedEntries), 0);
+            const commissionRate = 0.15;
+            let totalPayout = 0;
+            let totalWinningBetAmount = 0;
+            const payoutRatePer100 = 8000;
+
+            if (morningResult && morningResult.length === 2) {
+              allDailyEntries.filter(entry => entry.type === 'morning').forEach(entry => {
+                if (Array.isArray(entry.parsedEntries)) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === morningResult) {
+                        totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                        totalWinningBetAmount += parsedEntry.amount;
+                    }
+                  });
+                }
+              });
+            }
+            if (eveningResult && eveningResult.length === 2) {
+              allDailyEntries.filter(entry => entry.type === 'evening').forEach(entry => {
+                if (Array.isArray(entry.parsedEntries)) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === eveningResult) {
+                        totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                        totalWinningBetAmount += parsedEntry.amount;
+                    }
+                  });
+                }
+              });
+            }
+            const commission = totalSales * commissionRate;
+            const profitLoss = totalSales - commission - totalPayout;
+            return { totalSales, commission, totalPayout, totalWinningBetAmount, profitLoss };
+          }, [entries, morningResult, eveningResult, calculateTotalAmount]);
+
+          const dailySummary = calculateDailySummary();
+
+          // --- Function to Parse User Input into Structured Bet Entries ---
+          const parseEntryInput = (input) => {
+            const parsed = [];
+            const errors = [];
+            const lines = input.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+            const parseLine = (line) => {
+              const cleanLine = line.replace(/\s/g, '');
+              let matchFound = false;
+
+              const patterns = {
+                doubles: /^အပူး(\d+)$/,
+                consecutivePairs: /^ညီကို(\d+)$/,
+                fullPower: /^ပါဝါ(\d+)$/,
+                fullNakkat: /^နက္ခတ်(\d+)$/,
+                mixed: /^(\d{1,2})=(\d+)([Rr])(\d+)$/,
+                equal: /^(\d{1,2})=(\d+)$/,
+                reverse: /^(\d{1,2})[Rr](\d+)$/,
+                dotFormat: /^(\d{1,2}(?:\.\d{1,2})+)([Rr=])(\d+)$/,
+                slash: /^(\d{1,2})\/(\d{1,2})([Rr=])(\d+)$/,
+                hashFormat: /^(\d{1,2}(?:#\d{1,2})+)([Rr=])(\d+)$/,
+                kway: /^(\d+)\s*ခွေ\s*(\d+)$/,
+                topBottom: /^(\d)\s*(ထိပ်|ပိတ်)(\d+)$/,
+                par: /^(\d)\s*(ပါ|ပါတ်)(\d+)$/,
+                brake: /^(\d+)\s*ဘရိတ်\s*(\d+)$/,
+              };
+
+              let match;
+
+              if ((match = cleanLine.match(patterns.doubles))) {
+                matchFound = true;
+                const amount = parseInt(match[1]);
+                if (!isNaN(amount)) { for (let i = 0; i <= 9; i++) { parsed.push({ number: `${i}${i}`, amount: amount }); } }
+                else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.consecutivePairs))) {
+                matchFound = true;
+                const amount = parseInt(match[1]);
+                if (!isNaN(amount)) {
+                  const consecutiveNumbers = new Set();
+                  for (let i = 0; i < 10; i++) {
+                    const nextDigit = (i + 1) % 10;
+                    consecutiveNumbers.add(`${i}${nextDigit}`);
+                    consecutiveNumbers.add(`${nextDigit}${i}`);
+                  }
+                  Array.from(consecutiveNumbers).forEach(num => parsed.push({ number: num, amount: amount }));
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.fullPower))) {
+                matchFound = true;
+                const amount = parseInt(match[1]);
+                if (!isNaN(amount)) {
+                  const powerNumbers = ['05', '50', '16', '61', '27', '72', '38', '83', '49', '94'];
+                  powerNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.fullNakkat))) {
+                matchFound = true;
+                const amount = parseInt(match[1]);
+                if (!isNaN(amount)) {
+                  const nakkatNumbers = ['18', '81', '24', '42', '35', '53', '69', '96', '07', '70'];
+                  nakkatNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              else if ((match = cleanLine.match(patterns.mixed))) {
+                matchFound = true;
+                const num = match[1];
+                const amount1 = parseInt(match[2]);
+                const amount2 = parseInt(match[4]);
+                if (num.length === 2 && !isNaN(amount1) && !isNaN(amount2)) {
+                  parsed.push({ number: num, amount: amount1 });
+                  const reversedNum = num[1] + num[0];
+                  parsed.push({ number: reversedNum, amount: amount2 });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.equal))) {
+                matchFound = true;
+                const num = match[1];
+                const amount = parseInt(match[2]);
+                if (num.length === 2 && !isNaN(amount)) { parsed.push({ number: num, amount: amount }); }
+                else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.reverse))) {
+                matchFound = true;
+                const num = match[1];
+                const amount = parseInt(match[2]);
+                if (num.length === 2 && !isNaN(amount)) {
+                  parsed.push({ number: num, amount: amount });
+                  const reversedNum = num[1] + num[0];
+                  parsed.push({ number: reversedNum, amount: amount });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              else if ((match = cleanLine.match(patterns.dotFormat))) {
+                matchFound = true;
+                const numsStr = match[1];
+                const operator = match[2];
+                const amount = parseInt(match[3]);
+                const numList = numsStr.split('.');
+                if (!isNaN(amount) && numList.every(n => n.length === 2 && !isNaN(parseInt(n)))) {
+                  numList.forEach(num => {
+                    parsed.push({ number: num, amount: amount });
+                    if (operator.toLowerCase() === 'r') {
+                      const reversedNum = num[1] + num[0];
+                      parsed.push({ number: reversedNum, amount: amount });
+                    }
+                  });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.slash))) {
+                matchFound = true;
+                const numsStr = match[1] + '/' + match[2];
+                const operator = match[3];
+                const amount = parseInt(match[4]);
+                const numList = numsStr.split('/');
+                if (!isNaN(amount) && numList.every(n => n.length === 2 && !isNaN(parseInt(n)))) {
+                    numList.forEach(num => {
+                        parsed.push({ number: num, amount: amount });
+                        if (operator.toLowerCase() === 'r') {
+                            const reversedNum = num[1] + num[0];
+                            parsed.push({ number: reversedNum, amount: amount });
+                        }
+                    });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              else if ((match = cleanLine.match(patterns.hashFormat))) {
+                  matchFound = true;
+                  const numsStr = match[1];
+                  const operator = match[2];
+                  const amount = parseInt(match[3]);
+                  const numList = numsStr.split('#');
+                  if (!isNaN(amount) && numList.every(n => n.length === 2 && !isNaN(parseInt(n)))) {
+                      numList.forEach(num => {
+                          parsed.push({ number: num, amount: amount });
+                          if (operator.toLowerCase() === 'r') {
+                              const reversedNum = num[1] + num[0];
+                              parsed.push({ number: reversedNum, amount: amount });
+                          }
+                      });
+                  } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              else if ((match = cleanLine.match(patterns.kway))) {
+                matchFound = true;
+                const digitsString = match[1];
+                const amount = parseInt(match[2]);
+                if (!isNaN(amount)) {
+                  const kwayNumbers = generateKwayPermutations(digitsString);
+                  if (kwayNumbers.length > 0) {
+                    kwayNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
+                  } else { errors.push({ originalLine: line, message: `'${digitsString}' မှ ဂဏန်းတွဲများ ထုတ်၍ မရပါ။ ဂဏန်းအရေအတွက် အနည်းဆုံး ၂ လုံး လိုအပ်ပါသည်။` }); }
+                } else { errors.push({ originalLine: line, message: "ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              else if ((match = cleanLine.match(patterns.topBottom))) {
+                matchFound = true;
+                const digit = match[1];
+                const type = match[2];
+                const amount = parseInt(match[3]);
+                if (digit.length === 1 && !isNaN(amount)) {
+                  for (let i = 0; i < 10; i++) {
+                    let num;
+                    if (type === 'ထိပ်') { num = `${digit}${i}`; }
+                    else { num = `${i}${digit}`; }
+                    parsed.push({ number: num, amount: amount });
+                  }
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              } else if ((match = cleanLine.match(patterns.par))) {
+                matchFound = true;
+                const digit = match[1];
+                const amount = parseInt(match[3]);
+                if (digit.length === 1 && !isNaN(amount)) {
+                  const allNumbers = Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0'));
+                  allNumbers.forEach(num => {
+                    if (num.includes(digit)) { parsed.push({ number: num, amount: amount }); }
+                  });
+                } else { errors.push({ originalLine: line, message: "ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+              else if ((match = cleanLine.match(patterns.brake))) {
+                matchFound = true;
+                const brakeDigit = parseInt(match[1]);
+                const amount = parseInt(match[2]);
+                if (!isNaN(brakeDigit) && brakeDigit >= 0 && brakeDigit <= 9 && !isNaN(amount)) {
+                  const brakeNumbers = generateBrakeNumbers(brakeDigit);
+                  if (brakeNumbers.length > 0) {
+                    brakeNumbers.forEach(num => parsed.push({ number: num, amount: amount }));
+                  } else { errors.push({ originalLine: line, message: `'${brakeDigit}' ဘရိတ်အတွက် ဂဏန်းများ ထုတ်၍ မရပါ။` }); }
+                } else { errors.push({ originalLine: line, message: "ဘရိတ်ဂဏန်း သို့မဟုတ် ပမာဏ မှားယွင်းပါသည်။" }); }
+              }
+
+              if (!matchFound) {
+                errors.push({ originalLine: line, message: "မမှန်ကန်သော ထိုးကြေးပုံစံ။" });
+              }
+            };
+
+            lines.forEach(line => parseLine(line));
+
+            return { parsed, errors };
+          };
+
+          // --- Add a new entry to Firestore ---
+          const addEntry = async () => {
+            if (!db || !dataIdentifier) {
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
+              return;
+            }
+            setErrorMessage('');
+            setErrorDetails([]);
+            setShowErrorModal(false);
+
+            if (!customerNameInput.trim()) {
+              setErrorMessage("ထိုးသူအမည်ထည့်ရန် လိုအပ်ပါသည်။");
+              return;
+            }
+            if (!inputEntry.trim()) {
+              setErrorMessage("ထိုးကြေးထည့်ရန် လိုအပ်ပါသည်။");
+              return;
+            }
+
+            const { parsed, errors } = parseEntryInput(inputEntry);
+
+            if (errors.length > 0) {
+              setErrorDetails(errors);
+              setShowErrorModal(true);
+              return;
+            }
+
+            if (parsed.length === 0) {
+              setErrorMessage("ထည့်သွင်းထားသော စာကြောင်းများထဲမှ မှန်ကန်သော ထိုးကြေးပုံစံကို ရှာမတွေ့ပါ။");
+              return;
+            }
+
+            const newEntry = {
+              date: currentDate,
+              type: selectedEntryType,
+              customerName: customerNameInput.trim(),
+              originalInput: inputEntry.trim(),
+              parsedEntries: parsed,
+              createdAt: new Date(),
+            };
+
+            try {
+              const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+              await window.firebase.addDoc(window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`), newEntry);
+              setInputEntry('');
+              setCustomerNameInput('');
+              if (inputRef.current) inputRef.current.value = '';
+              setErrorMessage("စာရင်းကို အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။");
+              setTimeout(() => setErrorMessage(''), 3000);
+            } catch (e) {
+              console.error("Error adding document: ", e);
+              setErrorMessage("စာရင်းထည့်သွင်းရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+          };
+
+          // --- Update morning/evening results in Firestore ---
+          const updateResult = async (type, value) => {
+            if (!db || !dataIdentifier) {
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
+              return;
+            }
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const dailyResultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, currentDate);
+            try {
+              await window.firebase.setDoc(dailyResultDocRef, {
+                [type === 'morning' ? 'morningResult' : 'eveningResult']: value,
+                updatedAt: new Date()
+              }, { merge: true });
+              if (type === 'morning') {
+                setMorningResult(value);
+              } else {
+                setEveningResult(value);
+              }
+            } catch (e) {
+              console.error(`Error updating ${type} result: `, e);
+              setErrorMessage(`Error updating ${type} result.`);
+            }
+          };
+
+          // --- Handle date navigation (previous/next day) ---
+          const handleDateChange = (days) => {
+            const newDate = new Date(currentDate);
+            newDate.setDate(newDate.getDate() + days);
+            setCurrentDate(formatDate(newDate));
+          };
+
+          // --- Handle manual date selection from date picker ---
+          const handleManualDateChange = (e) => {
+            setCurrentDate(e.target.value);
+            setShowDatePicker(false);
+          };
+
+          // --- Show custom delete confirmation modal for an entry ---
+          const confirmDeleteEntry = (id) => {
+            setEntryToDeleteId(id);
+            setShowConfirmDeleteModal(true);
+          };
+
+          // --- Execute deletion of an entry from Firestore ---
+          const executeDeleteEntry = async () => {
+            if (!db || !dataIdentifier || !entryToDeleteId) {
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။ သို့မဟုတ် Database မရပါ။");
+              return;
+            }
+            try {
+              const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+              await window.firebase.deleteDoc(window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`, entryToDeleteId));
+              setErrorMessage("စာရင်းကို ဖျက်ပြီးပါပြီ။");
+              setShowConfirmDeleteModal(false);
+              setEntryToDeleteId(null);
+              setTimeout(() => setErrorMessage(''), 3000);
+            } catch (e) {
+              console.error("Error deleting document: ", e);
+              setErrorMessage("စာရင်းဖျက်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+          };
+
+          // --- Populate input fields for editing an existing entry ---
+          const handleEditEntry = (entry) => {
+            setCustomerNameInput(entry.customerName);
+            setInputEntry(entry.originalInput);
+            setErrorMessage("စာရင်းကို ပြင်ဆင်ရန် အောက်ပါ ထိုးကြေး Input တွင် ပြင်ဆင်ပြီး '+' ခလုပ်ကိုနှိပ်၍ ပြန်လည် ထည့်သွင်းပါ။");
+            setShowCustomerEntries(false);
+            if (inputRef.current) {
+                inputRef.current.focus();
+            }
+          };
+
+          // --- Monthly Summary Calculations and Data Fetching ---
+          const calculateMonthlySummaryData = React.useCallback((fetchedEntries, fetchedResults) => {
+            let totalSales = 0;
+            let totalPayout = 0;
+            let totalWinningBetAmount = 0;
+            const payoutRatePer100 = 8000;
+            const commissionRate = 0.15;
+
+            fetchedEntries.forEach(entry => {
+              totalSales += calculateTotalAmount(entry.parsedEntries);
+              const dailyResult = fetchedResults[entry.date];
+              if (dailyResult) {
+                const winningResult = entry.type === 'morning' ? dailyResult.morningResult : dailyResult.eveningResult;
+                if (winningResult && winningResult.length === 2) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === winningResult) {
+                      totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                      totalWinningBetAmount += parsedEntry.amount;
+                    }
+                  });
+                }
+              }
+            });
+
+            const commission = totalSales * commissionRate;
+            const profitLoss = totalSales - commission - totalPayout;
+            return { totalSales, commission, totalPayout, totalWinningBetAmount, profitLoss };
+          }, [calculateTotalAmount]);
+
+          React.useEffect(() => {
+            if (!db || !dataIdentifier || !showMonthlySummaryModal) {
+              setMonthlySummary(null);
+              return;
+            }
+
+            setIsMonthlySummaryLoading(true);
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const [year, month] = currentMonth.split('-').map(Number);
+            const startOfMonth = new Date(year, month - 1, 1);
+            const endOfMonth = new Date(year, month, 0);
+
+            const fetchMonthlyData = async () => {
+              try {
+                const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
+                const qEntriesMonth = window.firebase.query(
+                  entriesCollectionRef,
+                  window.firebase.where('date', '>=', formatDate(startOfMonth)),
+                  window.firebase.where('date', '<=', formatDate(endOfMonth))
+                );
+                const entriesSnapshot = await window.firebase.getDocs(qEntriesMonth);
+                const fetchedMonthlyEntries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                const uniqueDatesInMonthWithEntries = [...new Set(fetchedMonthlyEntries.map(entry => entry.date))];
+                const fetchedResults = {};
+                for (const dateString of uniqueDatesInMonthWithEntries) {
+                  const resultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, dateString);
+                  const resultSnap = await window.firebase.getDoc(resultDocRef);
+                  if (resultSnap.exists()) {
+                    fetchedResults[dateString] = resultSnap.data();
+                  }
+                }
+
+                const monthlySummaryCalculated = calculateMonthlySummaryData(fetchedMonthlyEntries, fetchedResults);
+                setMonthlySummary(monthlySummaryCalculated);
+              } catch (error) {
+                console.error("Error fetching monthly data:", error);
+                setErrorMessage("Error loading monthly summary.");
+              } finally {
+                setIsMonthlySummaryLoading(false);
+              }
+            };
+
+            fetchMonthlyData();
+          }, [db, dataIdentifier, currentMonth, showMonthlySummaryModal, calculateMonthlySummaryData]);
+
+          // Handle month navigation
+          const handleMonthChange = (months) => {
+            const [year, month] = currentMonth.split('-').map(Number);
+            const newDate = new Date(year, month - 1 + months, 1);
+            setCurrentMonth(formatMonthYear(newDate));
+          };
+
+          // Handle manual month selection
+          const handleManualMonthChange = (e) => {
+            setCurrentMonth(e.target.value);
+          };
+
+          // --- Per-Customer Monthly Summary Calculations and Data Fetching ---
+          const calculatePerCustomerMonthlySummaryData = React.useCallback((fetchedEntries, fetchedResults) => {
+            const groupedCustomers = {};
+            const payoutRatePer100 = 8000;
+
+            fetchedEntries.forEach(entry => {
+              if (!groupedCustomers[entry.customerName]) {
+                groupedCustomers[entry.customerName] = {
+                  totalSales: 0, totalPayout: 0, profitLoss: 0, totalWinningBetAmount: 0,
+                };
+              }
+
+              groupedCustomers[entry.customerName].totalSales += calculateTotalAmount(entry.parsedEntries);
+              const dailyResult = fetchedResults[entry.date];
+              if (dailyResult) {
+                const winningResult = entry.type === 'morning' ? dailyResult.morningResult : dailyResult.eveningResult;
+                if (winningResult && winningResult.length === 2) {
+                  entry.parsedEntries.forEach(parsedEntry => {
+                    if (parsedEntry.number === winningResult) {
+                      groupedCustomers[entry.customerName].totalPayout += (parsedEntry.amount / 100) * payoutRatePer100;
+                      groupedCustomers[entry.customerName].totalWinningBetAmount += parsedEntry.amount;
+                    }
+                  });
+                }
+              }
+            });
+
+            Object.keys(groupedCustomers).forEach(customerName => {
+              const customerData = groupedCustomers[customerName];
+              customerData.profitLoss = customerData.totalSales - customerData.totalPayout;
+            });
+
+            return Object.entries(groupedCustomers).map(([customerName, data]) => ({
+              customerName, ...data
+            })).sort((a, b) => b.totalSales - a.totalSales);
+          }, [calculateTotalAmount]);
+
+          React.useEffect(() => {
+            if (!db || !dataIdentifier || !showPerCustomerMonthlySummaryModal) {
+              setPerCustomerMonthlySummary(null);
+              return;
+            }
+
+            setIsPerCustomerMonthlySummaryLoading(true);
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const [year, month] = currentMonth.split('-').map(Number);
+            const startOfMonth = new Date(year, month - 1, 1);
+            const endOfMonth = new Date(year, month, 0);
+
+            const fetchPerCustomerMonthlyData = async () => {
+              try {
+                const entriesCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/entries`);
+                const qEntriesMonth = window.firebase.query(
+                  entriesCollectionRef,
+                  window.firebase.where('date', '>=', formatDate(startOfMonth)),
+                  window.firebase.where('date', '<=', formatDate(endOfMonth))
+                );
+                const entriesSnapshot = await window.firebase.getDocs(qEntriesMonth);
+                const fetchedMonthlyEntries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                const uniqueDatesInMonthWithEntries = [...new Set(fetchedMonthlyEntries.map(entry => entry.date))];
+                const fetchedResults = {};
+                for (const dateString of uniqueDatesInMonthWithEntries) {
+                  const resultDocRef = window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/dailyResults`, dateString);
+                  const resultSnap = await window.firebase.getDoc(resultDocRef);
+                  if (resultSnap.exists()) {
+                    fetchedResults[dateString] = resultSnap.data();
+                  }
+                }
+
+                const perCustomerMonthlySummaryCalculated = calculatePerCustomerMonthlySummaryData(fetchedMonthlyEntries, fetchedResults);
+                setPerCustomerMonthlySummary(perCustomerMonthlySummaryCalculated);
+              } catch (error) {
+                console.error("Error fetching per-customer monthly data:", error);
+                setErrorMessage("Error loading per-customer monthly summary.");
+              } finally {
+                setIsPerCustomerMonthlySummaryLoading(false);
+              }
+            };
+
+            fetchPerCustomerMonthlyData();
+          }, [db, dataIdentifier, currentMonth, showPerCustomerMonthlySummaryModal, calculatePerCustomerMonthlySummaryData]);
+
+          // --- Customer Management Functions ---
+          const handleAddOrUpdateCustomer = async () => {
+            if (!db || !dataIdentifier) {
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။");
+              return;
+            }
+            if (!newCustomerName.trim()) {
+              setErrorMessage("ထိုးသူအမည် ထည့်သွင်းရန် လိုအပ်ပါသည်။");
+              return;
+            }
+
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            const customersCollectionRef = window.firebase.collection(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`);
+
+            try {
+              if (editingCustomerId) {
+                await window.firebase.updateDoc(window.firebase.doc(customersCollectionRef, editingCustomerId), { name: newCustomerName.trim() });
+                setErrorMessage("ထိုးသူအမည် ပြင်ဆင်ပြီးပါပြီ။");
+              } else {
+                const q = window.firebase.query(customersCollectionRef, window.firebase.where("name", "==", newCustomerName.trim()));
+                const querySnapshot = await window.firebase.getDocs(q);
+                if (!querySnapshot.empty) {
+                  setErrorMessage("ဤထိုးသူအမည် ရှိပြီးသား ဖြစ်ပါသည်။");
+                  return;
+                }
+                await window.firebase.addDoc(customersCollectionRef, { name: newCustomerName.trim(), createdAt: new Date() });
+                setErrorMessage("ထိုးသူအမည် အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။");
+              }
+              setNewCustomerName('');
+              setEditingCustomerId(null);
+              setTimeout(() => setErrorMessage(''), 3000);
+            } catch (e) {
+              console.error("Error managing customer:", e);
+              setErrorMessage("ထိုးသူအမည် စီမံရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+          };
+
+          const startEditCustomer = (customer) => {
+            setNewCustomerName(customer.name);
+            setEditingCustomerId(customer.id);
+          };
+
+          const confirmDeleteCustomer = (id) => {
+            setCustomerToDeleteId(id);
+            setConfirmDeleteCustomerModal(true);
+          };
+
+          const executeDeleteCustomer = async () => {
+            if (!db || !dataIdentifier || !customerToDeleteId) {
+              setErrorMessage("User ID မရှိသေးပါ။ ကျေးဇူးပြု၍ User ID ထည့်သွင်းပါ။ သို့မဟုတ် Database မရပါ။");
+              return;
+            }
+            const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+            try {
+              await window.firebase.deleteDoc(window.firebase.doc(db, `artifacts/${appId}/data_by_identifier/${dataIdentifier}/customers`, customerToDeleteId));
+              setErrorMessage("ထိုးသူအမည် ဖျက်ပြီးပါပြီ။");
+              setConfirmDeleteCustomerModal(false);
+              setCustomerToDeleteId(null);
+              setTimeout(() => setErrorMessage(''), 3000);
+            } catch (e) {
+              console.error("Error deleting customer:", e);
+              setErrorMessage("ထိုးသူအမည် ဖျက်ရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။");
+            }
+          };
+
+          // --- Function to handle saving the user-provided data identifier ---
+          const handleSaveDataIdentifier = () => {
+              if (!dataIdentifierInput.trim()) {
+                  setIdErrorMessage("မသိမ်းဆည်းမီ User ID သို့မဟုတ် Nickname ထည့်သွင်းပါ။");
+                  return;
+              }
+              setDataIdentifier(dataIdentifierInput.trim());
+              setIdErrorMessage("");
+              setErrorMessage("User ID ကို အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။");
+              setTimeout(() => setErrorMessage(''), 3000);
+              console.log("Data identifier updated to:", dataIdentifierInput.trim());
+              setShowDataIdentifierModal(false);
+          };
+
+          // --- Utility function for copying text to clipboard ---
+          const copyToClipboard = (text) => {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+              document.execCommand('copy');
+              setShowCopyConfirmation(true);
+              setTimeout(() => setShowCopyConfirmation(false), 2000);
+            } catch (err) {
+              console.error('ကူးယူရန် မအောင်မြင်ပါ- ', err);
+              setErrorMessage('ကူးယူရန် မအောင်မြင်ပါ။');
+            }
+            document.body.removeChild(textArea);
+          };
+
+
+          // Render a loading spinner if Firebase is still initializing
+          if (isLoading) {
+            return (
+              <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center font-inter text-gray-800">
+                <Loader2 size={48} className="animate-spin text-blue-500 mb-4" />
+                <p className="text-lg font-semibold text-gray-700">ဒေတာများ တင်နေသည်...</p>
+              </div>
+            );
+          }
+
+          // Main App JSX Structure
+          return (
+            <div className="min-h-screen bg-gray-100 flex flex-col font-inter text-gray-800 pb-20">
+              {/* --- Header Section (Always Visible) --- */}
+              <div className="p-4 bg-white shadow-md rounded-b-lg mb-4">
+                <div className="flex justify-between items-center mb-3">
+                  {/* Back button */}
+                  {currentPage === 'entries' && (
+                    <button onClick={() => setCurrentPage('home')} className="p-2 bg-gray-200 text-gray-700 rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-gray-300 transform active:scale-95 transition-transform" aria-label="Back to Home">
+                      <ArrowLeft size={20} />
                     </button>
+                  )}
+                  {currentPage === 'home' && (<div className="w-10"></div>)}
+
+                  {/* Date Navigation and Calendar Icon */}
+                  {currentPage === 'home' && (
+                    <>
+                      <button onClick={() => handleDateChange(-1)} className="p-2 bg-blue-500 text-white rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300 transform active:scale-95 transition-transform" aria-label="Previous Day">
+                        <ChevronLeft size={20} />
+                      </button>
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowDatePicker(!showDatePicker)}
+                          className="text-base font-semibold text-blue-700 py-1 px-3 rounded-md bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transform active:scale-95 transition-transform"
+                          aria-label={`Selected Date: ${new Date(currentDate).toLocaleDateString('my-MM', { weekday: 'short' })}, ${new Date(currentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                        >
+                          {new Date(currentDate).toLocaleDateString('my-MM', { weekday: 'short' })}, {new Date(currentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          <CalendarDays size={16} className="inline-block ml-1" />
+                        </button>
+                        {showDatePicker && (
+                          <input
+                            type="date"
+                            value={currentDate}
+                            onChange={handleManualDateChange}
+                            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-2 border border-gray-300 rounded-md shadow-lg z-10"
+                          />
+                        )}
+                      </div>
+                      <button onClick={() => handleDateChange(1)} className="p-2 bg-blue-500 text-white rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300 transform active:scale-95 transition-transform" aria-label="Next Day">
+                        <ChevronRight size={20} />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Result Inputs and Overall Summary Button */}
+                  {currentPage === 'entries' && (
+                    <div className="flex-1 flex justify-end items-center space-x-2">
+                      {selectedEntryType === 'morning' && (
+                        <>
+                          <span className="text-sm font-bold text-blue-700 mr-2">Total = {morningTotalSales.toLocaleString()}</span>
+                          <label htmlFor="morningResultInput" className="text-sm font-medium text-gray-700">မနက်:</label>
+                          <input
+                            id="morningResultInput" type="text" value={localMorningResultInput} onChange={(e) => setLocalMorningResultInput(e.target.value)}
+                            onBlur={(e) => updateResult('morning', e.target.value)} className="w-16 p-1 border border-gray-300 rounded-md text-center text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            placeholder="00" maxLength="2" aria-label="Morning Result"
+                          />
+                        </>
+                      )}
+                      {selectedEntryType === 'evening' && (
+                        <>
+                           <span className="text-sm font-bold text-green-700 mr-2">Total = {eveningTotalSales.toLocaleString()}</span>
+                           <label htmlFor="eveningResultInput" className="text-sm font-medium text-gray-700">ညနေ:</label>
+                           <input
+                             id="eveningResultInput" type="text" value={localEveningResultInput} onChange={(e) => setLocalEveningResultInput(e.target.value)}
+                             onBlur={(e) => updateResult('evening', e.target.value)} className="w-16 p-1 border border-gray-300 rounded-md text-center text-sm focus:outline-none focus:ring-1 focus:ring-green-400"
+                             placeholder="00" maxLength="2" aria-label="Evening Result"
+                           />
+                        </>
+                      )}
+                      <button
+                        onClick={() => setShowOverallSummary(true)}
+                        className="p-2 bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center transform hover:scale-105 transition-transform focus:outline-none focus:ring-2 focus:ring-red-400 active:scale-95"
+                        title="စုစုပေါင်း ဂဏန်းစာရင်း" aria-label="Overall Numbers Summary"
+                      >
+                        <BarChart3 size={20} />
+                      </button>
+                    </div>
+                  )}
                 </div>
+
+                {/* Action Buttons for Home Page */}
+                {currentPage === 'home' && (
+                  <div className="text-center my-3 flex justify-center space-x-2 flex-wrap">
+                      <button
+                          onClick={() => { setShowDailySummaryModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-indigo-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300 transform active:scale-95 transition-transform mb-2"
+                          title="ရက်ချုပ်စာရင်း" aria-label="Daily Summary"
+                      >
+                          <BarChart3 size={18} className="mr-2" /> ရက်ချုပ်
+                      </button>
+                      <button
+                          onClick={() => { setShowMonthlySummaryModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-pink-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-300 transform active:scale-95 transition-transform mb-2"
+                          title="လချုပ်စာရင်း (ကော်မရှင်ပါ)" aria-label="Monthly Summary"
+                      >
+                          <CalendarDays size={18} className="mr-2" /> လချုပ်
+                      </button>
+                      <button
+                          onClick={() => { setShowPerCustomerMonthlySummaryModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 transform active:scale-95 transition-transform mb-2"
+                          title="တစ်ဦးချင်း လချုပ် (ကော်မရှင်မပါ)" aria-label="Per Customer Monthly Summary"
+                      >
+                          <User size={18} className="mr-2" /> တစ်ဦးချင်း လချုပ်
+                      </button>
+                      <button
+                          onClick={() => { setShowManageCustomersModal(true); }}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-full shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 transform active:scale-95 transition-transform mb-2"
+                          title="ထိုးသူများ စီမံရန်" aria-label="Manage Customers"
+                      >
+                          <Users size={18} className="mr-2" /> ထိုးသူများ စီမံရန်
+                      </button>
+                  </div>
+                )}
+                {currentPage === 'home' && dataIdentifier && (
+                  <p className="text-xs text-gray-500 text-center mt-2">
+                    လက်ရှိ ID: <span className="font-bold text-gray-700">{dataIdentifier}</span>
+                  </p>
+                )}
+
+                {/* Morning/Evening Result Displays for Home Page (clickable to navigate) */}
+                {currentPage === 'home' && (
+                  <div className="flex flex-col items-center space-y-4 mt-4">
+                    <div className="flex items-center w-11/12 mx-auto px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 cursor-pointer" onClick={() => { setCurrentPage('entries'); setSelectedEntryType('morning'); }}>
+                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-200 text-gray-700 text-sm font-bold mr-3">
+                            {morningResult || '??'}
+                        </div>
+                        <span className="flex-1 text-base text-gray-700">မနက်</span>
+                        <span className="text-xl font-bold text-gray-800">
+                            {morningTotalSales.toLocaleString()}
+                            {morningResult && (
+                                morningTotalWinningBetAmountHome > 0 ? <span className="ml-2 text-green-600">P-{morningTotalWinningBetAmountHome.toLocaleString()}</span> : <span className="ml-2 text-red-600">P-No</span>
+                            )}
+                        </span>
+                    </div>
+                    <div className="flex items-center w-11/12 mx-auto px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 cursor-pointer" onClick={() => { setCurrentPage('entries'); setSelectedEntryType('evening'); }}>
+                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-200 text-gray-700 text-sm font-bold mr-3">
+                            {eveningResult || '??'}
+                        </div>
+                        <span className="flex-1 text-base text-gray-700">ညနေ</span>
+                        <span className="text-xl font-bold text-gray-800">
+                            {eveningTotalSales.toLocaleString()}
+                            {eveningResult && (
+                                eveningTotalWinningBetAmountHome > 0 ? <span className="ml-2 text-green-600">P-{eveningTotalWinningBetAmountHome.toLocaleString()}</span> : <span className="ml-2 text-red-600">P-No</span>
+                            )}
+                        </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* --- Main Content Area --- */}
+              {currentPage === 'entries' && (
+                <div className="flex-1 flex flex-col w-full px-4 pt-4 overflow-y-auto" style={{ paddingBottom: `${fixedInputAreaHeight + 20}px` }}>
+                  {/* Persistent Customer Buttons */}
+                  <div className="px-4 mb-4 overflow-x-auto whitespace-nowrap hide-scrollbar">
+                    {customers.length === 0 ? (
+                      <p className="text-center text-gray-500 text-sm">ထိုးသူများ စီမံရန် ထဲတွင် နာမည်များ ထည့်သွင်းပါ။</p>
+                    ) : (
+                      customers.map(customer => (
+                        <button
+                          key={customer.id} onClick={() => { setCustomerNameInput(customer.name); if (inputRef.current) inputRef.current.focus(); }}
+                          className="inline-flex items-center justify-center px-4 py-2 mr-2 bg-purple-100 text-purple-800 text-sm font-medium rounded-full shadow-sm hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-300 transform active:scale-95 transition-transform"
+                        >
+                          <User size={14} className="mr-1" /> {customer.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
+
+                  {/* List of Customer Entries */}
+                  {Object.keys(customerDailySummaries).length === 0 ? (
+                    <p className="text-center text-gray-500 mt-8">ယနေ့အတွက် စာရင်းများမရှိသေးပါ။</p>
+                  ) : (
+                    Object.entries(customerDailySummaries).map(([customerName, data]) => (
+                      <div key={customerName} className="bg-white p-4 rounded-lg shadow-md mb-3 relative">
+                        <h3 className="text-base font-bold text-indigo-700 mb-1">{customerName}</h3>
+                        <button onClick={() => { setSelectedCustomerForDetail(customerName); setShowCustomerEntries(true); }} className="w-full text-left focus:outline-none">
+                          <div className="flex justify-between items-center text-base font-semibold text-teal-700">
+                            <span>{currentDate.substring(8,10)}/{selectedEntryType === 'morning' ? 'am' : 'pm'}-{data.totalSales.toLocaleString()}</span>
+                            <ChevronRight size={20} className="text-gray-500" />
+                          </div>
+                          {((selectedEntryType === 'morning' && morningResult && morningResult.length === 2) || (selectedEntryType === 'evening' && eveningResult && eveningResult.length === 2)) ? (
+                            <p className={`text-sm mt-1 ${data.totalPayout > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {data.winningBetAmount > 0 && data.winningNumber ? (`(${data.winningNumber})P-${data.winningBetAmount.toLocaleString()}`) : (`(${selectedEntryType === 'morning' ? morningResult : eveningResult})P-No`)}
+                            </p>
+                          ) : null}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const firstLine = `${currentDate.substring(8,10)}/${selectedEntryType === 'morning' ? 'am' : 'pm'}-${data.totalSales.toLocaleString()}`;
+                            let secondLine = '';
+                            const currentResult = selectedEntryType === 'morning' ? morningResult : eveningResult;
+                            if (currentResult && currentResult.length === 2) {
+                              secondLine = data.winningBetAmount > 0 && data.winningNumber ? `(${currentResult})P-${data.winningBetAmount.toLocaleString()}` : `(${currentResult})P-No`;
+                            }
+                            const textToCopy = `${firstLine}\n${secondLine}`;
+                            copyToClipboard(textToCopy.trim());
+                          }}
+                          className="absolute top-2 right-2 p-2 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
+                          title="ဤစာရင်းကို ကူးယူပါ" aria-label="Copy Entry Summary"
+                        >
+                          <Copy size={16} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* --- Input Area at the bottom of the screen (fixed position) --- */}
+              {currentPage === 'entries' && (
+                <div ref={fixedInputAreaRef} className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-top rounded-t-xl z-30">
+                  {errorMessage && (<p className="text-red-600 text-sm mb-2 text-center">{errorMessage}</p>)}
+                  <div className="mb-2 w-full">
+                    <input
+                      type="text" className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 shadow-sm w-full placeholder-gray-400"
+                      placeholder="ထိုးသူအမည် ထည့်ပါ" value={customerNameInput} onChange={(e) => { setCustomerNameInput(e.target.value); }}
+                      onFocus={() => setIsCustomerNameInputFocused(true)} onBlur={() => setIsCustomerNameInputFocused(false)} aria-label="Customer Name"
+                    />
+                  </div>
+                  <div className="flex items-end space-x-2 w-full">
+                    <textarea
+                      ref={inputRef}
+                      className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 resize-none h-24 shadow-sm placeholder-gray-400"
+                      placeholder=""
+                      value={inputEntry} onChange={(e) => setInputEntry(e.target.value)} aria-label="Entry Text"
+                    ></textarea>
+                    <button
+                      onClick={addEntry}
+                      className="p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+                      aria-label="Add Entry"
+                    >
+                      <Plus size={28} />
+                    </button>
+                  </div>
+                  <div className="h-8"></div>
+                </div>
+              )}
+
+              {/* --- FAB for User ID on Home Page --- */}
+              {currentPage === 'home' && (
+                  <button
+                      onClick={() => setShowDataIdentifierModal(true)}
+                      className="fixed bottom-4 right-4 p-4 bg-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-90 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-purple-400 z-40"
+                      title="User ID သတ်မှတ်ရန်"
+                      aria-label="Set User ID"
+                  >
+                      <User size={28} />
+                  </button>
+              )}
+
+
+              {/* --- Modals Section --- */}
+
+              {/* User Data Identifier Modal */}
+              {showDataIdentifierModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm flex flex-col">
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-blue-700">User ID သို့မဟုတ် Nickname</h2>
+                      <button onClick={() => setShowDataIdentifierModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close User ID Modal">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-sm text-gray-700 font-semibold mb-3">
+                          ဒေတာများ လုံခြုံစွာ သိမ်းဆည်းနိုင်ရန် သင်၏ User ID သို့မဟုတ် Nickname ကို ရိုက်ထည့်ပါ။ ဤ ID ကို မမေ့ပါနှင့်။
+                      </p>
+                      {idErrorMessage && (<p className="text-red-600 text-sm mb-2 text-center">{idErrorMessage}</p>)}
+                      <div className="flex flex-col space-y-3">
+                        <input
+                          type="text"
+                          value={dataIdentifierInput}
+                          onChange={(e) => { setDataIdentifierInput(e.target.value); setIdErrorMessage(''); }}
+                          placeholder="User ID/Nickname ကို ရိုက်ထည့်ပါ"
+                          className="p-2 border border-blue-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm"
+                          aria-label="User Data Identifier Input"
+                        />
+                        <button
+                          onClick={handleSaveDataIdentifier}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transform active:scale-95 transition-transform text-sm"
+                        >
+                          သိမ်းဆည်းမည်
+                        </button>
+                      </div>
+                      {dataIdentifier && (
+                          <p className="text-xs text-gray-500 text-center mt-3 p-2 bg-gray-50 rounded-md border border-gray-200">
+                               လက်ရှိ ID: <span className="font-bold text-gray-700">{dataIdentifier}</span>
+                              <br/>
+                              <span className="text-red-500 font-bold">ဤ ID ကို ပြောင်းလဲပါက ယခင်ဒေတာများ မတွေ့ရတော့ပါ။</span>
+                          </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Customer Entries Detail Modal */}
+              {showCustomerEntries && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-gray-800">{selectedCustomerForDetail} ၏ စာရင်းများ</h2>
+                      <button onClick={() => setShowCustomerEntries(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Customer Entries">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="p-4 overflow-y-auto flex-1">
+                      {customerDailySummaries[selectedCustomerForDetail]?.entries.map(entry => (
+                        <div key={entry.id} className="bg-gray-50 p-3 rounded-md mb-2 shadow-sm relative">
+                          <p className="text-sm text-gray-700 font-medium break-words pr-8 whitespace-pre-line">{entry.originalInput}</p>
+                          <button
+                              onClick={() => copyToClipboard(entry.originalInput)}
+                              className="absolute top-2 right-2 p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
+                              title="ဤစာရင်းကို ကူးယူပါ" aria-label="Copy Original Entry"
+                          >
+                              <Copy size={16} />
+                          </button>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Total = {calculateTotalAmount(entry.parsedEntries).toLocaleString()}
+                          </p>
+                          <div className="flex justify-end space-x-2 mt-2">
+                            <button
+                              onClick={() => handleEditEntry(entry)}
+                              className="p-1 rounded-full text-blue-500 hover:bg-blue-100 transform active:scale-95 transition-transform" aria-label="Edit Entry"
+                            >
+                              <Edit size={18} />
+                            </button>
+                            <button
+                              onClick={() => confirmDeleteEntry(entry.id)}
+                              className="p-1 rounded-full text-red-500 hover:bg-red-100 transform active:scale-95 transition-transform" aria-label="Delete Entry"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                     <div className="p-4 border-t text-right">
+                        <span className="text-base font-bold text-gray-800">
+                            Total= {customerDailySummaries[selectedCustomerForDetail]?.totalSales.toLocaleString()}
+                        </span>
+                    </div>
+                  </div>
+                  {showCopyConfirmation && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fade-in-out">
+                          စာရင်းကို ကူးယူပြီးပါပြီ။
+                      </div>
+                  )}
+                </div>
+              )}
+
+              {/* Overall Numbers Summary Modal */}
+              {showOverallSummary && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col relative">
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-purple-700">စုစုပေါင်း ဂဏန်းစာရင်း ({uniqueNumbersCount})ကွက်</h2>
+                      <button onClick={() => setShowOverallSummary(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Overall Summary">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="p-4 overflow-y-auto flex-1">
+                      {summaryArray.length === 0 ? (
+                        <p className="text-center text-gray-500 text-sm">စာရင်းမရှိသေးပါ။</p>
+                      ) : (
+                        summaryArray.map((item, index) => (<p key={index} className="text-base text-gray-700 mb-1">{item}</p>))
+                      )}
+                    </div>
+                    <div className="p-4 border-t flex justify-between items-center">
+                      <span className="text-lg font-bold text-blue-700">Total = {totalOverallAmount.toLocaleString()}</span>
+                      <button
+                        onClick={() => {
+                          const textToCopy = summaryArray.join('\n') + `\nTotal = ${totalOverallAmount.toLocaleString()}`;
+                          copyToClipboard(textToCopy);
+                        }}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
+                        aria-label="Copy Summary"
+                      >
+                        <Copy size={20} className="mr-2" /> ကူးယူမည်
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Daily Summary Modal */}
+              {showDailySummaryModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-orange-700">အမြတ်အရှုံး စာရင်း ({currentDate})</h2>
+                      <button onClick={() => setShowDailySummaryModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Summary">
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    <div className="p-4">
+                      <p className="text-sm text-gray-600 text-center mb-4">ဤစာရင်းသည် လက်ရှိထည့်သွင်းထားသော ဒေတာအတွက်သာ ဖြစ်ပါသည်။</p>
+                      <div className="grid grid-cols-2 gap-2 text-base">
+                        <span className="font-medium text-gray-600">ရောင်းရငွေ:</span>
+                        <span className="text-right text-gray-800">{dailySummary.totalSales.toLocaleString()} ကျပ်</span>
+
+                        <span className="font-medium text-gray-600">ကော်မရှင်:</span>
+                        <span className="text-right text-gray-800">{dailySummary.commission.toLocaleString()} ကျပ်</span>
+
+                        <span className="font-medium text-gray-600">ပေါက်:</span>
+                        <span className="text-right text-gray-800">{dailySummary.totalWinningBetAmount.toLocaleString()} ကျပ်</span>
+
+                        <span className="font-medium text-gray-600">ယော်ငွေ:</span>
+                        <span className="text-right text-gray-800">{dailySummary.totalPayout.toLocaleString()} ကျပ်</span>
+
+                        <div className="border-t pt-4 mt-4 col-span-2">
+                          <div className={`flex justify-between items-center text-lg font-bold ${dailySummary.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <span>{dailySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:'}</span>
+                            <span>{Math.abs(dailySummary.profitLoss).toLocaleString()} ကျပ်</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Monthly Summary Modal */}
+              {showMonthlySummaryModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col relative">
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-pink-700">လချုပ်စာရင်း ({currentMonth})</h2>
+                      <button onClick={() => setShowMonthlySummaryModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Monthly Summary">
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    {isMonthlySummaryLoading ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8">
+                        <Loader2 size={40} className="animate-spin text-pink-500 mb-4" />
+                        <p className="text-md text-gray-600">လချုပ်ဒေတာများ တင်နေသည်...</p>
+                      </div>
+                    ) : (
+                      <>
+                      <div className="p-4 flex-1 overflow-y-auto">
+                        <div className="flex justify-center items-center space-x-2 mb-4">
+                          <button onClick={() => handleMonthChange(-1)} className="p-2 bg-pink-100 text-pink-700 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-300 transform active:scale-95 transition-transform" aria-label="Previous Month">
+                            <ChevronLeft size={20} />
+                          </button>
+                          <input
+                            type="month"
+                            value={currentMonth}
+                            onChange={handleManualMonthChange}
+                            className="p-2 border border-gray-300 rounded-md text-center text-base font-semibold focus:outline-none focus:ring-1 focus:ring-pink-400"
+                            aria-label="Select Month"
+                          />
+                          <button onClick={() => handleMonthChange(1)} className="p-2 bg-pink-100 text-pink-700 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-300 transform active:scale-95 transition-transform" aria-label="Next Month">
+                            <ChevronRight size={20} />
+                          </button>
+                        </div>
+
+                        {monthlySummary ? (
+                          <div className="grid grid-cols-2 gap-2 text-base">
+                            <span className="font-medium text-gray-600">ရောင်းရငွေ:</span>
+                            <span className="text-right text-gray-800">{monthlySummary.totalSales.toLocaleString()} ကျပ်</span>
+
+                            <span className="font-medium text-gray-600">ကော်မရှင်:</span>
+                            <span className="text-right text-gray-800">{monthlySummary.commission.toLocaleString()} ကျပ်</span>
+
+                            <span className="font-medium text-gray-600">ပေါက်:</span>
+                            <span className="text-right text-gray-800">{monthlySummary.totalWinningBetAmount.toLocaleString()} ကျပ်</span>
+
+                            <span className="font-medium text-gray-600">ယော်ငွေ:</span>
+                            <span className="text-right text-gray-800">{monthlySummary.totalPayout.toLocaleString()} ကျပ်</span>
+
+                            <div className="border-t pt-4 mt-4 col-span-2">
+                              <div className={`flex justify-between items-center text-lg font-bold ${monthlySummary.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                <span>{monthlySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:'}</span>
+                                <span>{Math.abs(monthlySummary.profitLoss).toLocaleString()} ကျပ်</span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-center text-gray-500 mt-4">ဤလအတွက် စာရင်းမရှိသေးပါ။</p>
+                        )}
+                      </div>
+                      {monthlySummary && (
+                        <div className="p-4 border-t text-center">
+                            <button
+                                onClick={() => {
+                                    const header = `လချုပ်စာရင်း ({currentMonth})\n--------------------\n`;
+                                    const sales = `ရောင်းရငွေ:\t{monthlySummary.totalSales.toLocaleString()} ကျပ်\n`;
+                                    const commission = `ကော်မရှင်:\t\t{monthlySummary.commission.toLocaleString()} ကျပ်\n`;
+                                    const winningBet = `ပေါက်:\t\t\t{monthlySummary.totalWinningBetAmount.toLocaleString()} ကျပ်\n`;
+                                    const payout = `ယော်ငွေ:\t\t{monthlySummary.totalPayout.toLocaleString()} ကျပ်\n`;
+                                    const divider = `--------------------\n`;
+                                    const profitLossLabel = monthlySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:';
+                                    const profitLoss = `${profitLossLabel}\t\t${Math.abs(monthlySummary.profitLoss).toLocaleString()} ကျပ်`;
+                                    const textToCopy = header + sales + commission + winningBet + payout + divider + profitLoss;
+                                    copyToClipboard(textToCopy);
+                                }}
+                                className="flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
+                                aria-label="Copy Monthly Summary"
+                            >
+                                <Copy size={20} className="mr-2" /> ကူးယူမည်
+                            </button>
+                        </div>
+                      )}
+                      </>
+                    )}
+                    {showCopyConfirmation && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fade-in-out">
+                        စာရင်းကို ကူးယူပြီးပါပြီ။
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Per-Customer Monthly Summary Modal */}
+              {showPerCustomerMonthlySummaryModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col relative">
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-teal-700">တစ်ဦးချင်း လချုပ် ({currentMonth})</h2>
+                      <button onClick={() => setShowPerCustomerMonthlySummaryModal(false)} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Per-Customer Monthly Summary">
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    {isPerCustomerMonthlySummaryLoading ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8">
+                        <Loader2 size={40} className="animate-spin text-teal-500 mb-4" />
+                        <p className="text-md text-gray-600">ဒေတာများ တင်နေသည်...</p>
+                      </div>
+                    ) : (
+                      <div className="p-4 flex-1 overflow-y-auto">
+                        <div className="flex justify-center items-center space-x-2 mb-4">
+                          <button onClick={() => handleMonthChange(-1)} className="p-2 bg-teal-100 text-teal-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-300 transform active:scale-95 transition-transform" aria-label="Previous Month">
+                            <ChevronLeft size={20} />
+                          </button>
+                          <input
+                            type="month"
+                            value={currentMonth}
+                            onChange={handleManualMonthChange}
+                            className="p-2 border border-gray-300 rounded-md text-center text-base font-semibold focus:outline-none focus:ring-1 focus:ring-teal-400"
+                            aria-label="Select Month"
+                          />
+                          <button onClick={() => handleMonthChange(1)} className="p-2 bg-teal-100 text-teal-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-300 transform active:scale-95 transition-transform" aria-label="Next Month">
+                            <ChevronRight size={20} />
+                          </button>
+                        </div>
+
+                        {perCustomerMonthlySummary && perCustomerMonthlySummary.length > 0 ? (
+                            <div className="space-y-3">
+                                {perCustomerMonthlySummary.map((customerData, index) => (
+                                    <div key={index} className="bg-gray-50 p-3 rounded-md shadow-sm border border-gray-200 relative">
+                                        <button
+                                            onClick={() => {
+                                                const customerName = customerData.customerName;
+                                                const salesLine = `ထိုးကြေး=${customerData.totalSales.toLocaleString()}`;
+                                                const winningLine = customerData.totalWinningBetAmount > 0
+                                                    ? `P-${customerData.totalWinningBetAmount.toLocaleString()}=${customerData.totalPayout.toLocaleString()}`
+                                                    : `P-No`;
+                                                const profitLossLabel = customerData.profitLoss < 0 ? 'ပေးရန်' : 'ရရန်';
+                                                const profitLossLine = `${profitLossLabel}=${Math.abs(customerData.profitLoss).toLocaleString()}`;
+                                                const textToCopy = `${customerName}\n\n${salesLine}\n${winningLine}\n${profitLossLine}`;
+                                                copyToClipboard(textToCopy);
+                                            }}
+                                            className="absolute top-2 right-2 p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
+                                            title="ဤစာရင်းကို ကူးယူပါ"
+                                            aria-label="Copy Customer Summary"
+                                        >
+                                            <Copy size={14} />
+                                        </button>
+                                        <h3 className="text-md font-bold text-gray-800 mb-2 pr-8">{customerData.customerName}</h3>
+                                        <div className="space-y-1 text-sm">
+                                            <p className="text-gray-700">ထိုးကြေး={customerData.totalSales.toLocaleString()}</p>
+                                            <p className="text-gray-700">
+                                                {customerData.totalWinningBetAmount > 0
+                                                    ? `P-${customerData.totalWinningBetAmount.toLocaleString()}=${customerData.totalPayout.toLocaleString()}`
+                                                    : 'P-No'
+                                                }
+                                            </p>
+                                            <p className={`font-bold ${customerData.profitLoss < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                {customerData.profitLoss < 0 ? 'ပေးရန်' : 'ရရန်'}=${Math.abs(customerData.profitLoss).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500 mt-4">ဤလအတွက် တစ်ဦးချင်းစာရင်းမရှိသေးပါ။</p>
+                        )}
+                      </div>
+                    )}
+                    {showCopyConfirmation && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fade-in-out">
+                        စာရင်းကို ကူးယူပြီးပါပြီ။
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Manage Customers Modal */}
+              {showManageCustomersModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-40">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+                    <div className="flex justify-between items-center p-4 border-b">
+                      <h2 className="text-lg font-bold text-green-700">ထိုးသူများ စီမံရန်</h2>
+                      <button onClick={() => { setShowManageCustomersModal(false); setNewCustomerName(''); setEditingCustomerId(null); setErrorMessage(''); }} className="text-gray-500 hover:text-gray-700 transform active:scale-95 transition-transform" aria-label="Close Manage Customers">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      {errorMessage && (<p className="text-red-600 text-sm mb-2 text-center animate-fade-in-out">{errorMessage}</p>)}
+                      <div className="flex space-x-2 mb-4">
+                        <input
+                          type="text"
+                          value={newCustomerName}
+                          onChange={(e) => setNewCustomerName(e.target.value)}
+                          placeholder="ထိုးသူအမည် ထည့်/ပြင်ဆင်ပါ"
+                          className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-400"
+                          aria-label="Customer Name Input"
+                        />
+                        <button
+                          onClick={handleAddOrUpdateCustomer}
+                          className="px-4 py-2 bg-green-600 text-white rounded-md shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
+                        >
+                          {editingCustomerId ? 'ပြင်ဆင်မည်' : 'ထည့်မည်'}
+                        </button>
+                      </div>
+                      <h3 className="text-md font-bold text-gray-700 mb-2">လက်ရှိ ထိုးသူများ:</h3>
+                      <div className="max-h-60 overflow-y-auto hide-scrollbar border border-gray-200 rounded-md p-2">
+                        {customers.length === 0 ? (
+                          <p className="text-center text-gray-500 text-sm">ထိုးသူမရှိသေးပါ။</p>
+                        ) : (
+                          customers.map(customer => (
+                            <div key={customer.id} className="flex justify-between items-center bg-gray-50 p-2 rounded-md mb-2 shadow-sm">
+                              <span className="text-gray-700 font-medium">{customer.name}</span>
+                              <div className="flex space-x-2">
+                                <button onClick={() => startEditCustomer(customer)} className="p-1 rounded-full text-blue-500 hover:bg-blue-100 transform active:scale-95 transition-transform" aria-label="Edit Customer">
+                                  <Edit size={16} />
+                                </button>
+                                <button onClick={() => confirmDeleteCustomer(customer.id)} className="p-1 rounded-full text-red-500 hover:bg-red-100 transform active:scale-95 transition-transform" aria-label="Delete Customer">
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Details Modal */}
+              {showErrorModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+                    <div className="flex justify-between items-center p-4 border-b bg-red-100">
+                      <h2 className="text-lg font-bold text-red-700">ထိုးကြေးပုံစံ မှားယွင်းမှု</h2>
+                      <button onClick={() => setShowErrorModal(false)} className="text-red-500 hover:text-red-700 transform active:scale-95 transition-transform" aria-label="Close Error Details">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="p-4 overflow-y-auto flex-1">
+                      <p className="text-sm text-gray-700 mb-4">
+                        အောက်ပါ ထိုးကြေးပုံစံများတွင် မှားယွင်းမှုများ တွေ့ရှိရပါသည်။
+                        <br/>
+                        <span className="font-semibold text-blue-600">ထိုးကြေးထည့်ရန်နေရာတွင် ပြန်လည်ပြင်ဆင်ပြီး ထပ်မံထည့်သွင်းပါ။</span>
+                      </p>
+                      {errorDetails.map((err, index) => (
+                        <div key={index} className="bg-red-50 p-3 rounded-md mb-2 border border-red-200">
+                          <p className="font-medium text-red-800">"{err.originalLine}"</p>
+                          <p className="text-xs text-red-600 mt-1">- {err.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-4 border-t text-right">
+                      <button
+                        onClick={() => setShowErrorModal(false)}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transform active:scale-95 transition-transform"
+                      >
+                        Ok
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Delete Confirmation Modal (for entries) */}
+              {showConfirmDeleteModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-xs">
+                    <div className="flex justify-between items-center p-4 border-b bg-yellow-100">
+                      <h2 className="text-lg font-bold text-yellow-700">အတည်ပြုရန်</h2>
+                      <button onClick={() => setShowConfirmDeleteModal(false)} className="text-yellow-500 hover:text-yellow-700 transform active:scale-95 transition-transform" aria-label="Close Confirmation">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="p-4 text-center">
+                      <p className="text-sm text-gray-700 mb-4">ဤစာရင်းကို ဖျက်ရန် သေချာပါလား။</p>
+                      <div className="flex justify-around space-x-4">
+                        <button
+                          onClick={() => setShowConfirmDeleteModal(false)}
+                          className="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transform active:scale-95 transition-transform"
+                        >
+                         cancel 
+                        </button>
+                        <button
+                          onClick={executeDeleteEntry}
+                          className="px-6 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transform active:scale-95 transition-transform"
+                        >
+                          Delete 
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Customer Delete Confirmation Modal */}
+              {confirmDeleteCustomerModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-xs">
+                    <div className="flex justify-between items-center p-4 border-b bg-yellow-100">
+                      <h2 className="text-lg font-bold text-yellow-700">အတည်ပြုရန်</h2>
+                      <button onClick={() => setConfirmDeleteCustomerModal(false)} className="text-yellow-500 hover:text-yellow-700 transform active:scale-95 transition-transform" aria-label="Close Confirmation">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="p-4 text-center">
+                      <p className="text-sm text-gray-700 mb-4">ဤထိုးသူအမည်ကို ဖျက်ရန် သေချာပါလား။</p>
+                      <div className="flex justify-around space-x-4">
+                        <button
+                          onClick={() => setConfirmDeleteCustomerModal(false)}
+                          className="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transform active:scale-95 transition-transform"
+                        >
+                          cancel 
+                        </button>
+                        <button
+                          onClick={executeDeleteCustomer}
+                          className="px-6 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transform active:scale-95 transition-transform"
+                        >
+                          Delete 
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <!-- Two lines of empty space below the input as requested -->
-            <div class="h-8"></div>
-        </div>
-    </div>
+          );
+        };
 
-    <!-- Admin Page View (initially hidden) -->
-    <div id="admin-page-view" class="hidden flex-1 flex-col p-4 pb-32 max-w-xl mx-auto w-full">
-        <!-- Admin Page Header -->
-        <div class="flex items-center justify-between bg-white p-4 rounded-xl shadow-md mb-4">
-            <button id="back-to-main-btn" class="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors">
-                <!-- Back arrow SVG -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-            </button>
-            <h2 class="text-xl font-bold text-gray-800">Admin View</h2>
-            <!-- New button for aggregated sales -->
-            <button onclick="showAggregatedSales()" class="p-2 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors">
-                <!-- Calculator icon SVG -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calculator"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8"/><path d="M8 10h8"/><path d="M8 14h8"/><path d="M8 18h8"/></svg>
-            </button>
-        </div>
-
-        <!-- Admin Nickname List -->
-        <h3 class="text-lg font-bold text-gray-800 mb-3">ကြည့်ရှုရန် Nickname ရွေးပါ</h3>
-        <div id="admin-nickname-list-page" class="bg-white p-4 rounded-xl shadow-md mb-4 flex-1 overflow-y-auto space-y-2">
-            <!-- Nicknames will be dynamically loaded here -->
-        </div>
-
-        <!-- Admin Sales Records List Section -->
-        <h2 id="admin-sales-list-header" class="text-xl font-bold text-gray-800 mb-3 mt-4"></h2>
-        <div id="admin-sales-records-list" class="flex-1 overflow-y-auto mb-4">
-            <!-- Sales records for selected admin nickname will be loaded here -->
-            <p class="text-center text-gray-500 mt-4">Nickname ရွေးချယ်ပါ</p>
-        </div>
-
-        <!-- Admin Total Bet Amount Display -->
-        <div class="bg-white p-4 rounded-xl shadow-md text-right text-lg font-bold text-blue-800 mb-4">
-            <span id="admin-total-bet-amount">စုစုပေါင်း: 0</span>
-        </div>
-        <!-- Input section is intentionally NOT present here for admin view -->
-    </div>
-
-    <!-- Nickname Selection/Add Modal (remains a modal) -->
-    <div id="nickname-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h3 class="text-xl font-bold text-gray-800 mb-4">Nickname ရွေးချယ်ပါ / ထည့်ပါ</h3>
-            <div id="nickname-list" class="flex-1 overflow-y-auto mb-4 space-y-2">
-                <!-- Nicknames will be dynamically loaded here -->
-            </div>
-            <!-- New container for add nickname input and button -->
-            <div id="nickname-add-section">
-                <input type="text" id="new-nickname-input" placeholder="Nickname အသစ်ထည့်ပါ" class="mb-3">
-                <button id="add-nickname-button" class="bg-blue-600 text-white hover:bg-blue-700">Nickname ထည့်ပါ</button>
-            </div>
-            <button id="close-nickname-modal" class="bg-gray-300 text-gray-800 hover:bg-gray-400">ပိတ်မည်</button>
-        </div>
-    </div>
-
-    <!-- Custom Message Box (replaces alert()) -->
-    <div id="message-box" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h3 class="text-lg font-bold text-gray-800">သတိပေးချက်</h3>
-            <p id="message-box-content" class="text-gray-700"></p>
-            <button id="close-message-box" class="bg-blue-600 text-white hover:bg-blue-700">နားလည်ပါပြီ</button>
-        </div>
-    </div>
-
-    <!-- Custom Confirm Box (replaces confirm()) -->
-    <div id="confirm-box" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h3 class="text-lg font-bold text-gray-800">အတည်ပြုရန်</h3>
-            <p id="confirm-box-content" class="text-gray-700"></p>
-            <div class="flex justify-end space-x-3 mt-4">
-                <button id="confirm-no-btn" class="bg-gray-300 text-gray-800 hover:bg-gray-400">မလုပ်တော့ပါ</button>
-                <button id="confirm-yes-btn" class="bg-red-600 text-white hover:bg-red-700">အတည်ပြုသည်</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Aggregated Sales Modal -->
-    <div id="aggregated-sales-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <!-- Updated header for aggregated sales -->
-            <h3 id="aggregated-sales-modal-title" class="text-xl font-bold text-gray-800 mb-4">စုစုပေါင်း အရောင်းစာရင်း (<span id="aggregated-sales-date"></span>)</h3>
-            <div id="aggregated-sales-list" class="flex-1 overflow-y-auto mb-4 space-y-1">
-                <!-- Aggregated sales will be dynamically loaded here -->
-                <p class="text-center text-gray-500 mt-4">စာရင်းများ တွက်ချက်နေသည်...</p>
-            </div>
-            <div class="text-right text-lg font-bold text-blue-800">
-                <span id="aggregated-total-amount">Total = 0</span>
-            </div>
-            <div class="flex justify-end space-x-3 mt-4">
-                <button onclick="copyAggregatedSales()" class="bg-green-600 text-white hover:bg-green-700">ကူးယူမည်</button>
-                <button id="close-aggregated-sales-modal" class="bg-gray-300 text-gray-800 hover:bg-gray-400">ပိတ်မည်</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Copy Message -->
-    <div id="copy-message" class="copy-message">ကူးယူပြီးပါပြီ!</div>
-
+        // Render the App component
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
 </body>
 </html>
-
