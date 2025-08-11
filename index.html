@@ -306,7 +306,9 @@
             const qEntries = window.firebase.query(entriesCollectionRef, window.firebase.where('date', '==', currentDate));
             const unsubscribeEntries = window.firebase.onSnapshot(qEntries, (snapshot) => {
               const fetchedEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              setEntries(fetchedEntries);
+              // createdAt အချိန်အလိုက် အစဉ်လိုက် စီပေးသည်
+              const sortedEntries = fetchedEntries.sort((a, b) => a.createdAt.toDate() - b.createdAt.toDate());
+              setEntries(sortedEntries);
               console.log(`Fetched ${fetchedEntries.length} entries for ${currentDate}.`);
             }, (error) => {
               console.error("Error fetching entries:", error);
@@ -1104,7 +1106,7 @@
             return (
               <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center font-inter text-gray-800">
                 <Loader2 size={48} className="animate-spin text-blue-500 mb-4" />
-                <p className="text-lg font-semibold text-gray-700">ဒေတာများ တင်နေသည်...</p>
+                <p className="text-lg font-semibold text-gray-700">🇲🇲 LOADING 🇲🇲...</p>
               </div>
             );
           }
@@ -1418,9 +1420,11 @@
                       </button>
                     </div>
                     <div className="p-4 overflow-y-auto flex-1">
-                      {customerDailySummaries[selectedCustomerForDetail]?.entries.map(entry => (
+                      {customerDailySummaries[selectedCustomerForDetail]?.entries.map((entry, index) => (
                         <div key={entry.id} className="bg-gray-50 p-3 rounded-md mb-2 shadow-sm relative">
-                          <p className="text-sm text-gray-700 font-medium break-words pr-8 whitespace-pre-line">{entry.originalInput}</p>
+                          <p className="text-sm text-gray-700 font-medium break-words pr-8 whitespace-pre-line">
+                            <span className="font-bold text-blue-500 mr-2">{index + 1}.</span> {entry.originalInput}
+                          </p>
                           <button
                               onClick={() => copyToClipboard(entry.originalInput)}
                               className="absolute top-2 right-2 p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transform active:scale-95 transition-transform"
@@ -1489,7 +1493,7 @@
                         className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
                         aria-label="Copy Summary"
                       >
-                        <Copy size={20} className="mr-2" /> ကူးယူမည်
+                        <Copy size={20} className="mr-2" /> Copy 
                       </button>
                     </div>
                   </div>
@@ -1510,21 +1514,21 @@
                     <div className="p-4">
                       <p className="text-sm text-gray-600 text-center mb-4">ဤစာရင်းသည် လက်ရှိထည့်သွင်းထားသော ဒေတာအတွက်သာ ဖြစ်ပါသည်။</p>
                       <div className="grid grid-cols-2 gap-2 text-base">
-                        <span className="font-medium text-gray-600">ရောင်းရငွေ:</span>
+                        <span className="font-medium text-gray-600">ရောင်းရငွေ</span>
                         <span className="text-right text-gray-800">{dailySummary.totalSales.toLocaleString()} ကျပ်</span>
 
-                        <span className="font-medium text-gray-600">ကော်မရှင်:</span>
+                        <span className="font-medium text-gray-600">ကော်မရှင်</span>
                         <span className="text-right text-gray-800">{dailySummary.commission.toLocaleString()} ကျပ်</span>
 
-                        <span className="font-medium text-gray-600">ပေါက်:</span>
+                        <span className="font-medium text-gray-600">ပေါက်</span>
                         <span className="text-right text-gray-800">{dailySummary.totalWinningBetAmount.toLocaleString()} ကျပ်</span>
 
-                        <span className="font-medium text-gray-600">ယော်ငွေ:</span>
+                        <span className="font-medium text-gray-600">ယော်ငွေ</span>
                         <span className="text-right text-gray-800">{dailySummary.totalPayout.toLocaleString()} ကျပ်</span>
 
                         <div className="border-t pt-4 mt-4 col-span-2">
                           <div className={`flex justify-between items-center text-lg font-bold ${dailySummary.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            <span>{dailySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:'}</span>
+                            <span>{dailySummary.profitLoss >= 0 ? 'အမြတ်' : 'အရှုံး'}</span>
                             <span>{Math.abs(dailySummary.profitLoss).toLocaleString()} ကျပ်</span>
                           </div>
                         </div>
@@ -1571,21 +1575,21 @@
 
                         {monthlySummary ? (
                           <div className="grid grid-cols-2 gap-2 text-base">
-                            <span className="font-medium text-gray-600">ရောင်းရငွေ:</span>
+                            <span className="font-medium text-gray-600">ရောင်းရငွေ</span>
                             <span className="text-right text-gray-800">{monthlySummary.totalSales.toLocaleString()} ကျပ်</span>
 
-                            <span className="font-medium text-gray-600">ကော်မရှင်:</span>
+                            <span className="font-medium text-gray-600">ကော်မရှင်</span>
                             <span className="text-right text-gray-800">{monthlySummary.commission.toLocaleString()} ကျပ်</span>
 
-                            <span className="font-medium text-gray-600">ပေါက်:</span>
+                            <span className="font-medium text-gray-600">ပေါက်</span>
                             <span className="text-right text-gray-800">{monthlySummary.totalWinningBetAmount.toLocaleString()} ကျပ်</span>
 
-                            <span className="font-medium text-gray-600">ယော်ငွေ:</span>
+                            <span className="font-medium text-gray-600">ယော်ငွေ</span>
                             <span className="text-right text-gray-800">{monthlySummary.totalPayout.toLocaleString()} ကျပ်</span>
 
                             <div className="border-t pt-4 mt-4 col-span-2">
                               <div className={`flex justify-between items-center text-lg font-bold ${monthlySummary.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                <span>{monthlySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:'}</span>
+                                <span>{monthlySummary.profitLoss >= 0 ? 'အမြတ်' : 'အရှုံး'}</span>
                                 <span>{Math.abs(monthlySummary.profitLoss).toLocaleString()} ကျပ်</span>
                               </div>
                             </div>
@@ -1599,12 +1603,12 @@
                             <button
                                 onClick={() => {
                                     const header = `လချုပ်စာရင်း ({currentMonth})\n--------------------\n`;
-                                    const sales = `ရောင်းရငွေ:\t{monthlySummary.totalSales.toLocaleString()} ကျပ်\n`;
-                                    const commission = `ကော်မရှင်:\t\t{monthlySummary.commission.toLocaleString()} ကျပ်\n`;
-                                    const winningBet = `ပေါက်:\t\t\t{monthlySummary.totalWinningBetAmount.toLocaleString()} ကျပ်\n`;
-                                    const payout = `ယော်ငွေ:\t\t{monthlySummary.totalPayout.toLocaleString()} ကျပ်\n`;
+                                    const sales = `ရောင်းရငွေ\t{monthlySummary.totalSales.toLocaleString()} ကျပ်\n`;
+                                    const commission = `ကော်မရှင်\t\t{monthlySummary.commission.toLocaleString()} ကျပ်\n`;
+                                    const winningBet = `ပေါက်\t\t\t{monthlySummary.totalWinningBetAmount.toLocaleString()} ကျပ်\n`;
+                                    const payout = `ယော်ငွေ\t\t{monthlySummary.totalPayout.toLocaleString()} ကျပ်\n`;
                                     const divider = `--------------------\n`;
-                                    const profitLossLabel = monthlySummary.profitLoss >= 0 ? 'အမြတ်:' : 'အရှုံး:';
+                                    const profitLossLabel = monthlySummary.profitLoss >= 0 ? 'အမြတ်' : 'အရှုံး';
                                     const profitLoss = `${profitLossLabel}\t\t${Math.abs(monthlySummary.profitLoss).toLocaleString()} ကျပ်`;
                                     const textToCopy = header + sales + commission + winningBet + payout + divider + profitLoss;
                                     copyToClipboard(textToCopy);
@@ -1612,7 +1616,7 @@
                                 className="flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transform active:scale-95 transition-transform"
                                 aria-label="Copy Monthly Summary"
                             >
-                                <Copy size={20} className="mr-2" /> ကူးယူမည်
+                                <Copy size={20} className="mr-2" /> Copy 
                             </button>
                         </div>
                       )}
@@ -1871,3 +1875,4 @@
     </script>
 </body>
 </html>
+
